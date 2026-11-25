@@ -15,6 +15,8 @@ from dazflow.core.config import Config
 from dazflow.core.dataset import FINGERPRINT_FORMAT, Dataset, LogEntry, SeriesMeta
 from dazflow.core.errors import (
     ArtefactError,
+    CheckError,
+    CleanError,
     ConfigError,
     DatasetError,
     DazflowError,
@@ -44,6 +46,8 @@ __all__ = [
     "ArtefactError",
     "ArtefactIds",
     "Check",
+    "CheckError",
+    "CleanError",
     "Column",
     "Comparison",
     "Config",
