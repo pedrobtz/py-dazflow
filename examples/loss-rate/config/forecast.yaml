@@ -1,0 +1,26 @@
+# forecast: the chosen model under every scenario of config/select.yaml, anchored at
+# the origin and back on the target's scale with intervals (design §7.7).
+
+# Periods forecast; unset: as many as every scenario covers.
+horizon: null
+# Interval levels.
+levels: [0.8, 0.95]
+anchor:
+  # carry: the gap is added at every horizon; decay: it shrinks by `decay` each period; none: it is not added.
+  rule: decay
+  # decay: the share of the gap removed each period; the gap at horizon h is gap x (1 - decay)^h.
+  decay: 0.5
+# Revert towards a long-run level: {level: ..., periods: ...}; unset: no.
+reversion: null
+# Bias correction back on the target's scale; auto: smearing for a log or Box-Cox, simulation for a logit or a nonlinear chain with a lag, none for a linear chain.
+correction: auto
+simulation:
+  # Simulated paths per scenario.
+  draws: 2000
+  # Seed of the draws; unset: project.yaml's seed (0 outside a project).
+  seed: null
+# Largest jump-off gap at the origin, in the target's units.
+tolerance: 1.0e-06
+# [lower, upper] for every forecast mean in the target's units; null leaves a side open; unset: select's bounds.
+bounds: null
+overrides: []

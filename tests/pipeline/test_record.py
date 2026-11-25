@@ -37,7 +37,7 @@ def record(ran_example):
     return json.loads((ran_example / "reports" / "record.json").read_text())
 
 
-STEPS = ["ingest", "clean", "explore", "build", "select"]
+STEPS = ["ingest", "clean", "explore", "build", "select", "forecast"]
 # What the example sets beyond the defaults: ingest's series and inputs, select's scenarios.
 SET = {"select": {"scenarios", "bounds"}}
 
@@ -98,7 +98,7 @@ def test_results_rebuild_as_their_step_types(ran_example, record):
         assert getattr(result, "dataset", None) is None  # build and select hold none
         assert result.to_dict() == record["results"][step]
     with pytest.raises(dz.RecordError, match="no result"):
-        loaded.result("forecast")
+        loaded.result("diagnose")
 
 
 def test_checks_and_overrides_are_listed_by_step(record):
@@ -149,6 +149,13 @@ def test_every_input_has_its_fingerprint(ran_example, record):
             "kind": "file-sha256",
             "fingerprint": hashlib.sha256(scenarios).hexdigest(),
         },
+        {
+            "step": "forecast",
+            "name": "scenarios",
+            "path": "data/raw/scenarios.csv",
+            "kind": "file-sha256",
+            "fingerprint": hashlib.sha256(scenarios).hexdigest(),
+        },
     ]
 
 
@@ -159,8 +166,8 @@ def test_every_dataset_is_recorded_with_its_path_and_fingerprint(ran_example, re
         assert entry["fingerprint"] == record["results"][step]["fingerprint"]
         ds = dz.project.read_dataset(ran_example / entry["path"])
         assert ds.fingerprint() == entry["fingerprint"]
-    # build and select return no dataset: each records the fingerprint of the one it ran on.
-    for step in ("build", "select"):
+    # build, select and forecast return no dataset: each records the one it ran on.
+    for step in ("build", "select", "forecast"):
         entry = record["datasets"][step]
         assert entry["path"] is None
         assert entry["fingerprint"] == record["datasets"]["clean"]["fingerprint"]
@@ -184,3 +191,17 @@ def test_a_missing_or_broken_record_file_is_a_record_error(tmp_path):
     (tmp_path / "record.json").write_text("{not json")
     with pytest.raises(dz.RecordError, match="not valid JSON"):
         RunRecord.load(tmp_path / "record.json")
+
+
+def test_forecast_reads_selects_scenarios_from_the_folder_and_records_them(ran_example, record):
+    inputs = [i for i in record["inputs"] if i["step"] == "forecast"]
+    assert [(i["name"], i["path"], i["kind"]) for i in inputs] == [
+        ("scenarios", "data/raw/scenarios.csv", "file-sha256")
+    ]
+    sel = [i for i in record["inputs"] if i["step"] == "select" and i["name"] == "scenarios"]
+    assert inputs[0]["fingerprint"] == sel[0]["fingerprint"]
+    result = record["results"]["forecast"]
+    assert result["chosen"] == record["results"]["select"]["chosen"]
+    assert [p["scenario"] for p in result["paths"]] == ["baseline", "adverse", "severe"]
+    assert record["config"]["forecast"]["bounds"] is None  # select's bounds are used
+    assert result["bounds"] == [0.0, 100.0]

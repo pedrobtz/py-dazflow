@@ -85,12 +85,15 @@ def test_a_missing_schema_file_is_refused(tmp_path):
         read_dataset(path)
 
 
-@pytest.mark.parametrize("step", ["ingest", "clean", "explore", "build", "select"])
+@pytest.mark.parametrize("step", ["ingest", "clean", "explore", "build", "select", "forecast"])
 def test_commented_yaml_reads_back_as_the_configuration(step):
     cls = registry.get(step).Config
     examples = {
         "ingest": dz.project._folder._example_ingest,
         "select": dz.project._folder._example_select,
+        "forecast": lambda: cls.model_validate(
+            {"reversion": {"level": 2.5}, "bounds": [0.0, None], "anchor": {"rule": "carry"}}
+        ),
     }
     cfg = (
         examples[step]()
@@ -192,9 +195,11 @@ def test_validate_refuses_a_config_file_for_no_step(example):
 def test_validate_refuses_an_unknown_step_in_the_pipeline(example):
     path = example / "project.yaml"
     path.write_text(
-        path.read_text().replace("[ingest, clean, explore, build, select]", "[ingest, forecast]")
+        path.read_text().replace(
+            "[ingest, clean, explore, build, select, forecast]", "[ingest, diagnose]"
+        )
     )
-    with pytest.raises(dz.PipelineError, match="forecast"):
+    with pytest.raises(dz.PipelineError, match="diagnose"):
         dz.project.load(example).validate()
 
 
