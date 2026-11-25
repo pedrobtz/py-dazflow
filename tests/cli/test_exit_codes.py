@@ -28,7 +28,15 @@ def test_run_on_the_example_exits_0_and_writes_the_record(example):
     assert result.exit_code == 0, result.output
     record = json.loads((example / "reports" / "record.json").read_text(encoding="utf-8"))
     assert record["run"]["status"] == "passed"
-    assert record["run"]["steps"] == ["ingest", "clean", "explore", "build", "select", "forecast"]
+    assert record["run"]["steps"] == [
+        "ingest",
+        "clean",
+        "explore",
+        "build",
+        "select",
+        "forecast",
+        "diagnose",
+    ]
 
 
 def test_a_configuration_error_exits_1(example):

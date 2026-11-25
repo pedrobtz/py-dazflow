@@ -60,7 +60,7 @@ checks something the stage introduces and later stages build on.
 | 7 | [Model forms and evaluation](#stage-7--model-forms-and-evaluation) | full | [#9](https://github.com/pedrobtz/py-dazflow/issues/9) | [#27](https://github.com/pedrobtz/py-dazflow/pull/27) | 2026-11-25 |
 | 8 | [Build and select](#stage-8--build-and-select) | quick | [#10](https://github.com/pedrobtz/py-dazflow/issues/10) | [#28](https://github.com/pedrobtz/py-dazflow/pull/28) | 2026-11-25 |
 | 9 | [Forecast](#stage-9--forecast) | quick | [#11](https://github.com/pedrobtz/py-dazflow/issues/11) | [#29](https://github.com/pedrobtz/py-dazflow/pull/29) | 2026-11-25 |
-| 10 | [Diagnose](#stage-10--diagnose) | quick | [#12](https://github.com/pedrobtz/py-dazflow/issues/12) | | |
+| 10 | [Diagnose](#stage-10--diagnose) | quick | [#12](https://github.com/pedrobtz/py-dazflow/issues/12) | [#30](https://github.com/pedrobtz/py-dazflow/pull/30) | 2026-11-25 |
 | 11 | [Report and replay](#stage-11--report-and-replay) | quick | [#13](https://github.com/pedrobtz/py-dazflow/issues/13) | | |
 | 12 | [Documentation site](#stage-12--documentation-site) | quick | [#14](https://github.com/pedrobtz/py-dazflow/issues/14) | | |
 | 13 | [Assurance](#stage-13--assurance) | quick | [#15](https://github.com/pedrobtz/py-dazflow/issues/15) | | |
@@ -672,6 +672,28 @@ history, with a pass-or-fail summary.
 - The quick profile is green on the pull request.
 
 **Design.** [§7.8](design.md#78-diagnose-test-the-chosen-model).
+
+**As built** (2026-11-25). `dz.diagnose.run(dataset, config, *, select,
+forecast=None)` refits select's chosen model from its record and tests it
+(D42). The regression-based tests (Breusch-Godfrey, Breusch-Pagan, White,
+RESET, both CUSUM tests, Chow, rolling coefficients) run on a statsmodels
+OLS of the same design and apply to the `ols` form only; Ljung-Box applies
+to every estimated form, ARCH and Jarque-Bera to all but `glm`, nothing to
+a benchmark. A test that does not apply is recorded with its reason,
+noted under `T8.1` and left out of the gate. Chow tests run at configured
+breaks, else at fixed fractions of the sample (the middle by default).
+The back-test is `dz.evaluation.evaluate`, four periods ahead by default,
+with a coverage check. Sensitivity shocks a driver's model column (one
+standard deviation by default) and swaps in one driver's scenario path at
+a time, from the mildest scenario. Anomalies are observations outside
+fitted ± z·s at 99%, their share at most 5%. Charts are one figure each
+(`F8.1` residuals, `F8.2` CUSUM, `F8.3` rolling coefficients), as D28 and
+D31 chose. The default pipeline and `examples/loss-rate` now end at
+diagnose; the example's `config/diagnose.yaml` overrides RESET, which
+rejects at p ≈ 0.03 on the made-up series, with a reason, so the
+`package` job's run still passes. The CUSUM bounds use Brown, Durbin and
+Evans' constants rather than statsmodels' private function, whose 10%
+constant is wrong. No dependency changed.
 
 ## Stage 11 — Report and replay
 

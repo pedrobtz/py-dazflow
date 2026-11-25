@@ -21,7 +21,7 @@ def test_the_default_pipeline_is_the_built_steps():
     assert (
         Pipeline().steps
         == DEFAULT_STEPS
-        == ("ingest", "clean", "explore", "build", "select", "forecast")
+        == ("ingest", "clean", "explore", "build", "select", "forecast", "diagnose")
     )
 
 
@@ -30,7 +30,7 @@ def test_the_default_pipeline_is_the_built_steps():
     [
         ([], "no steps"),
         (["ingest", "ingest"], "more than once"),
-        (["ingest", "diagnose"], "diagnose"),
+        (["ingest", "adjust"], "adjust"),
     ],
 )
 def test_a_pipeline_of_unknown_or_repeated_steps_is_refused(steps, match):
@@ -41,7 +41,7 @@ def test_a_pipeline_of_unknown_or_repeated_steps_is_refused(steps, match):
 def test_select_takes_from_and_to_in_pipeline_order():
     p = Pipeline()
     assert p.select() == DEFAULT_STEPS
-    assert p.select("clean") == ("clean", "explore", "build", "select", "forecast")
+    assert p.select("clean") == ("clean", "explore", "build", "select", "forecast", "diagnose")
     assert p.select(None, "clean") == ("ingest", "clean")
     assert p.select("clean", "clean") == ("clean",)
     with pytest.raises(dz.PipelineError, match="comes after"):
@@ -279,3 +279,31 @@ def test_build_without_explore_takes_the_latest_dataset(example):
     assert run.results["build"].fingerprint == run.results["clean"].fingerprint
     assert run.results["build"].chains == {"loss_rate": (), "gdp_growth": (), "unemployment": ()}
     assert run.results["select"].seed == 4
+
+
+def test_diagnose_needs_select_before_it(example):
+    proj = dz.project.load(example)
+    steps = ("ingest", "clean", "explore", "build", "diagnose")
+    configs = {k: v for k, v in proj.configs().items() if k in steps}
+    with pytest.raises(dz.PipelineError, match="needs the result of 'select'"):
+        Pipeline(list(steps)).run(configs, root=example)
+
+
+def test_diagnose_without_forecast_takes_the_scenarios_coverage(example):
+    proj = dz.project.load(example)
+    steps = ("ingest", "clean", "explore", "build", "select", "diagnose")
+    configs = {k: v for k, v in proj.configs().items() if k in steps}
+    run = Pipeline(list(steps)).run(configs, root=example)
+    d = run.results["diagnose"]
+    assert d.chosen == run.results["select"].chosen
+    assert d.horizon == 12  # the example's scenarios cover twelve quarters after the origin
+    assert [i.step for i in run.inputs if i.name == "scenarios"] == ["select", "diagnose"]
+
+
+def test_diagnose_takes_forecasts_horizon(example):
+    proj = dz.project.load(example)
+    configs = proj.configs()
+    configs["forecast"] = configs["forecast"].model_copy(update={"horizon": 4})
+    run = Pipeline().run(configs, root=example)
+    assert run.results["forecast"].horizon == 4
+    assert run.results["diagnose"].horizon == 4

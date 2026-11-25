@@ -59,3 +59,21 @@ def close(a, b, path="result"):
         assert a == pytest.approx(b, rel=1e-12, abs=1e-14), path
     else:
         assert a == b, path
+
+
+def chosen_model(ds, form="ols", candidate="ols:a+b", explore=None):
+    """Build and select on `ds` with `candidate` chosen; quick settings (200 MCS reps, 10 folds)."""
+    from dazflow.steps import build, select
+
+    b = build.run(ds, {"max_size": 2, "forms": [form]}, explore=explore)
+    s = select.run(
+        ds,
+        {
+            "mcs": {"reps": 200},
+            "splitter_config": {"folds": 10},
+            "choice": {"candidate": candidate, "reason": "Fixed for the test."},
+        },
+        build=b,
+    )
+    assert s.chosen == candidate
+    return s

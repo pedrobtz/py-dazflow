@@ -88,7 +88,7 @@ def test_run_json_is_the_record_it_wrote(example):
 
 def test_the_record_holds_the_same_results_as_the_step_folders(ran_example):
     record = json.loads((ran_example / "reports" / "record.json").read_text(encoding="utf-8"))
-    for step in ("ingest", "clean", "explore", "build", "select", "forecast"):
+    for step in ("ingest", "clean", "explore", "build", "select", "forecast", "diagnose"):
         folder = json.loads(
             (ran_example / "reports" / step / "result.json").read_text(encoding="utf-8")
         )
@@ -136,7 +136,7 @@ def test_validate_json(example):
     assert got == {
         "valid": True,
         "project": "loss-rate",
-        "steps": ["ingest", "clean", "explore", "build", "select", "forecast"],
+        "steps": ["ingest", "clean", "explore", "build", "select", "forecast", "diagnose"],
         "inputs": [
             {"name": "macro", "path": "data/raw/series.csv"},
             {"name": "scenarios", "path": "data/raw/scenarios.csv"},

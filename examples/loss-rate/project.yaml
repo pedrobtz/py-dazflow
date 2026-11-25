@@ -6,7 +6,7 @@ name: loss-rate
 # One line on what the model is for.
 description: null
 # The steps `dazflow run` runs, in order; each reads config/<step>.yaml.
-pipeline: [ingest, clean, explore, build, select, forecast]
+pipeline: [ingest, clean, explore, build, select, forecast, diagnose]
 # Seed for any random draw a step makes.
 seed: 0
 # A style YAML file merged onto the house style, relative to this folder.

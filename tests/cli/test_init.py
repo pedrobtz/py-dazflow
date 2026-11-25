@@ -38,6 +38,7 @@ def test_init_creates_the_design_layout(tmp_path):
     assert sorted(tree(root)) == [
         "config/build.yaml",
         "config/clean.yaml",
+        "config/diagnose.yaml",
         "config/explore.yaml",
         "config/forecast.yaml",
         "config/ingest.yaml",

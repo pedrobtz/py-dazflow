@@ -19,6 +19,7 @@ __all__ = [
     "ConfigError",
     "DatasetError",
     "DazflowError",
+    "DiagnoseError",
     "DuplicateKeyError",
     "EvaluationError",
     "ExploreError",
@@ -158,6 +159,10 @@ class SelectError(DazflowError):
 
 class ForecastError(DazflowError):
     """The chosen model cannot be forecast as configured (scenarios, horizon or correction)."""
+
+
+class DiagnoseError(DazflowError):
+    """The chosen model cannot be diagnosed as configured (no model, a back-test, a break)."""
 
 
 class PipelineError(DazflowError):

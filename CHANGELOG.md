@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+- `dz.diagnose`: the seventh step. It refits select's chosen model and
+  tests it. Residual tests: Ljung-Box, Breusch-Godfrey, Breusch-Pagan,
+  White, ARCH, Jarque-Bera and RESET, each a p-value against a configured
+  `alpha`. Stability: the CUSUM test of the OLS residuals, the recursive
+  CUSUM against Brown, Durbin and Evans' bounds, rolling coefficients, and
+  Chow tests at configured break dates or at fixed fractions of the sample
+  (the middle by default). A back-test forecasts several periods ahead
+  from past origins through `dz.evaluation.evaluate` and checks the
+  interval's coverage. Sensitivity reports, one driver at a time, the
+  forecast's response to a shock and to that driver's scenario path alone.
+  Anomalies are the observations outside the model's interval at a
+  configured level, their share checked against a maximum. Tests that do
+  not apply to the chosen form (a benchmark; a regression-based test of a
+  form that is not OLS) are listed with their reason and are not in the
+  gate. Artefacts: diagnostics (`T8.1`), sensitivity (`T8.2`), anomalies
+  (`T8.3`), back-test (`T8.4`) and gate (`T8.5`) tables; residual (`F8.1`),
+  CUSUM (`F8.2`) and rolling-coefficient (`F8.3`) charts; a finding
+  (`S8.1`). `chow()`, `anomalies()`, `residual_tests()` and
+  `default_lags()` are public. New error `DiagnoseError`.
+- The default pipeline ends at diagnose, and `dazflow init` writes
+  `config/diagnose.yaml`. The example project accepts its failed RESET
+  test by an override with a reason.
+
 - `dz.forecast`: the sixth step. It refits select's chosen model and
   forecasts it from the origin (the last period of its sample) under
   every scenario, with intervals. The gap between observed and fitted at

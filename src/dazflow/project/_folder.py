@@ -303,6 +303,9 @@ _HEADER = {
     "rule (design §7.6). Confirm or override the proposal in choice, with a reason.\n"
     "data/raw/scenarios.csv holds illustrative driver paths written for the example data,\n"
     "not a published scenario.",
+    "diagnose": "diagnose: the chosen model's residual tests, stability, back-test, sensitivity\n"
+    "and anomalies (design §7.8). Each test is a threshold check; tests that do not apply to\n"
+    "the model's form are listed as such.",
     "forecast": "forecast: the chosen model under every scenario of config/select.yaml, anchored at\n"
     "the origin and back on the target's scale with intervals (design §7.7).",
 }
@@ -353,7 +356,24 @@ def _example_select() -> Config:
     )
 
 
-_EXAMPLES = {"ingest": _example_ingest, "select": _example_select}
+def _example_diagnose() -> Config:
+    from dazflow.steps import diagnose
+
+    return diagnose.Config.model_validate(
+        {
+            "overrides": [
+                {
+                    "check": "reset",
+                    "reason": "Example data: RESET rejects the linear form at 5% (p = 0.03). "
+                    "The series were made up for the example; a real model would revisit "
+                    "its functional form before use.",
+                }
+            ]
+        }
+    )
+
+
+_EXAMPLES = {"ingest": _example_ingest, "select": _example_select, "diagnose": _example_diagnose}
 _EXAMPLE_DATA = ("series.csv", "scenarios.csv")
 
 

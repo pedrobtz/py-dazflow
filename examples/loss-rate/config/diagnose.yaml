@@ -1,0 +1,74 @@
+# diagnose: the chosen model's residual tests, stability, back-test, sensitivity
+# and anomalies (design §7.8). Each test is a threshold check; tests that do not apply to
+# the model's form are listed as such.
+
+ljung_box:
+  # The check passes when the p-value is at least alpha.
+  alpha: 0.05
+  # Lags tested; unset: twice the seasonal period (10 for annual data), at most a fifth of the sample.
+  lags: null
+breusch_godfrey:
+  # The check passes when the p-value is at least alpha.
+  alpha: 0.05
+  # Lags tested; unset: twice the seasonal period (10 for annual data), at most a fifth of the sample.
+  lags: null
+breusch_pagan:
+  # The check passes when the p-value is at least alpha.
+  alpha: 0.05
+white:
+  # The check passes when the p-value is at least alpha.
+  alpha: 0.05
+arch:
+  # The check passes when the p-value is at least alpha.
+  alpha: 0.05
+  # Lags tested; unset: twice the seasonal period (10 for annual data), at most a fifth of the sample.
+  lags: null
+jarque_bera:
+  # The check passes when the p-value is at least alpha.
+  alpha: 0.05
+reset:
+  # The check passes when the p-value is at least alpha.
+  alpha: 0.05
+  # The highest power of the fitted values added.
+  power: 3
+cusum:
+  # Level of the OLS-residual CUSUM test and of the recursive CUSUM's bounds: 0.01, 0.05 or 0.10, the levels Brown, Durbin and Evans tabulate.
+  alpha: 0.05
+  # Most periods the recursive CUSUM may lie outside its bounds.
+  max_crossings: 0
+chow:
+  # The check passes when the p-value is at least alpha.
+  alpha: 0.05
+  # Break dates, as periods (2008Q1); unset: candidates.
+  breaks: []
+  # Without breaks: candidate dates as fractions of the sample (0.5: the middle), fixed before the data are seen.
+  candidates: [0.5]
+rolling:
+  # Window in periods; unset: a third of the sample, at least 2k.
+  window: null
+backtest:
+  # Rolling-origin splitter, by registry key.
+  splitter: expanding
+  # The splitter's settings; by default four periods ahead from every origin after the first half of the sample.
+  splitter_config: {horizon: 4}
+  # The interval whose coverage is checked.
+  level: 0.95
+  # Least share of actual values inside that interval.
+  min_coverage: 0.8
+sensitivity:
+  # The shock added to a driver at every horizon.
+  shock: 1.0
+  # sd: the shock is in standard deviations of the driver as the model takes it; unit: in its units.
+  scale: sd
+  # Periods; unset: forecast's horizon, else the scenarios' coverage.
+  horizon: null
+  # The scenario shocks and paths are measured from; unset: the mildest.
+  base: null
+anomalies:
+  # Level of the interval around the fitted values.
+  level: 0.99
+  # Largest share of observations outside it.
+  max_share: 0.05
+overrides:
+  - check: reset
+    reason: 'Example data: RESET rejects the linear form at 5% (p = 0.03). The series were made up for the example; a real model would revisit its functional form before use.'

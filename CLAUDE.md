@@ -70,6 +70,9 @@ select.
 scenario reader select and forecast share) and the forecast adapter. The
 default pipeline ends at forecast.
 
+2026-11-25, Stage 10: `steps/diagnose.py` and the diagnose adapter. The
+default pipeline ends at diagnose.
+
 ## Versions and dependents
 
 `v0.1.0` issue: see the roadmap header. Dependents: none.
@@ -196,6 +199,16 @@ To be written as stages land; see `.agents/design.md` §4 for the layers
   corrections use `numpy.random.default_rng(seed)`, the same draws for
   every scenario; keep test draws small, as a chain with a nonlinear lag
   inverts each path separately.
+- `steps/diagnose.py` takes the levels and select's result (and forecast's,
+  for the sensitivity horizon). Regression-based tests (Breusch-Godfrey,
+  Breusch-Pagan, White, RESET, CUSUM, Chow, rolling) run on a statsmodels
+  OLS of `design.frames(levels)` and apply to the `ols` form only; any other
+  form records them as not applicable with a reason, outside the gate. Call
+  statsmodels tests that take `result_object` through `_plain` (0.15 warns
+  without it, 0.14 lacks it). P-values repeat between runs only to about
+  1e-15: threshold tests straddle by a relative 1e-9 and check the value
+  itself on `Diagnostic.check()`. The CUSUM bounds use Brown, Durbin and
+  Evans' constants (statsmodels' private bound for 0.10 is wrong).
 - `tests/models/` has an `__init__.py` because `tests/checks/` already has
   a `test_contract.py`: without it the two basenames collide.
 - Never run `uv run --resolution lowest-direct` without restoring

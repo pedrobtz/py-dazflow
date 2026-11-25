@@ -194,5 +194,5 @@ jobs:
           import json, sys
           record = json.load(open("reports/record.json"))
           print(record["run"]["status"], record["run"]["steps"])
-          sys.exit(record["run"]["status"] != "passed" or record["run"]["steps"] != ["ingest", "clean", "explore", "build", "select", "forecast"])
+          sys.exit(record["run"]["status"] != "passed" or record["run"]["steps"] != ["ingest", "clean", "explore", "build", "select", "forecast", "diagnose"])
           PY
