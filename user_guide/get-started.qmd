@@ -1,0 +1,91 @@
+---
+title: Get started
+---
+
+<!--
+Not run: written from .agents/design.md before the API exists.
+Replace the code with real runs, and paste their output, once the
+functions are in.
+-->
+
+Building a time-series model means the same steps every time, and much
+of the effort goes into turning their output into a document. `dazflow`
+runs the steps from configuration and renders every result in one house
+style. This page follows one project, made by the command line, through
+the main ideas.
+
+```sh
+pip install dazflow
+dazflow init my-model
+```
+
+```python
+import dazflow as dz
+
+cfg = dz.load_config("my-model/project.yaml")
+```
+
+## Steps
+
+Each step is one call, `run(inputs, config)`, and a later step takes the
+earlier one's result as an argument instead of importing it.
+
+```python
+ds = dz.ingest.run(cfg.ingest)
+ds = dz.clean.run(ds, cfg.clean).dataset
+ex = dz.explore.run(ds, cfg.explore)
+cand = dz.build.run(ds, cfg.build, explore=ex)
+sel = dz.select.run(ds, cfg.select, candidates=cand)
+```
+
+## Gates and findings
+
+Every step ends in checks against configured thresholds. A failed gate
+is reported, never hidden, and is overridden only with a reason written
+in configuration.
+
+```python
+sel.gate.passed
+sel.finding
+```
+
+## Artefacts
+
+Tables and figures carry stable identifiers and are ready for a Word
+document.
+
+```python
+sel.artefacts["T5.1"].to_docx("ranking.docx")
+```
+
+The same project runs from the command line:
+
+```sh
+dazflow run --to select
+dazflow report
+```
+
+## Your own components
+
+A model form, check or transform is registered once and then named in
+configuration like a built-in one.
+
+```python
+@dz.models.register("theta")
+class Theta:
+    Config = ThetaConfig
+
+    def fit(self, y, X=None) -> dz.models.Fitted:
+        ...
+```
+
+```yaml
+# my-model/config/build.yaml
+forms: [ols, arimax, theta]
+```
+
+## Where next
+
+The design, `.agents/design.md`, describes every step, the extension
+interfaces and the packages behind them. The API reference and a
+command-line guide come with the first stages.
