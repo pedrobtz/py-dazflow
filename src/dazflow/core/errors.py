@@ -19,10 +19,14 @@ __all__ = [
     "DuplicateKeyError",
     "FindingError",
     "GateError",
+    "IngestError",
+    "MissingExtraError",
     "PluginError",
+    "ReaderError",
     "RegistryError",
     "RenderError",
     "ResultError",
+    "TransformError",
     "UnknownKeyError",
 ]
 
@@ -69,6 +73,48 @@ class ArtefactError(DazflowError):
 
 class RenderError(DazflowError):
     """An artefact could not be rendered in the format asked for."""
+
+
+class TransformError(DazflowError):
+    """A transform could not be applied or inverted, such as the log of a value that is not positive.
+
+    `series` and `period` name the first value outside the transform's
+    domain, when there is one.
+    """
+
+    def __init__(
+        self,
+        problem: str,
+        *,
+        observed: str,
+        change: str,
+        series: str | None = None,
+        period: str | None = None,
+    ) -> None:
+        self.series = series
+        self.period = period
+        super().__init__(problem, observed=observed, change=change)
+
+
+class ReaderError(DazflowError):
+    """Data could not be read, or its dates could not be put on a calendar."""
+
+
+class MissingExtraError(ReaderError):
+    """An optional package is not installed; `extra` names the ``dazflow`` extra that has it."""
+
+    def __init__(self, what: str, module: str, extra: str) -> None:
+        self.module = module
+        self.extra = extra
+        super().__init__(
+            f"{what} needs {module}, which is not installed",
+            observed=f"import {module} failed; it is in the dazflow[{extra}] extra",
+            change=f"Install the extra: pip install 'dazflow[{extra}]' (or uv add 'dazflow[{extra}]').",
+        )
+
+
+class IngestError(DazflowError):
+    """The ingest step cannot put its inputs on one calendar as configured."""
 
 
 class ResultError(DazflowError):
