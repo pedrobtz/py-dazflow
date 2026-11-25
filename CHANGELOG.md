@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+- The `dazflow` command: `init` (a project folder with every default
+  written out and commented, and example data that runs), `validate`
+  (configuration and inputs, without running a step), one command per step
+  (`ingest`, `clean`, `explore`, and any step a plugin registers), `run
+  --from/--to`, `show <artefact-id>`, `plugins` and `--version`. Every
+  command takes `--project` and `--json`. Exit codes: 0 success, 1 error,
+  2 a step completed with a failed gate; `run` stops after that step.
+- `dz.pipeline`: `Pipeline` runs steps by name in configured order,
+  passing earlier results through per-step adapters
+  (`register_adapter`); `Run` holds what one pass returned, without writing
+  anything; `RunRecord` is the run record (schema version 1): configuration
+  with every default, results, checks, overrides, environment and a
+  fingerprint of every input.
+- `dz.project`: the project folder. `Project.run()` reads it,
+  `Project.write(run)` writes the datasets (CSV with a schema file and a
+  checked fingerprint), each step's tables, figures and finding under
+  `reports/<step>/` and `reports/record.json`. `project.yaml` names the
+  pipeline, a style file and the previous data vintage for clean's
+  revisions check.
+- `examples/loss-rate`: the example project, as `dazflow init` writes it.
+- New errors `PipelineError`, `ProjectError` and `RecordError`.
+- typer is required at 0.26.0 or later and rich at 13.8 or later.
+
 - `dz.explore`: the third step. It profiles every series (trend and
   seasonal strength from STL, autocorrelation, volatility, intermittency),
   runs ADF, DFGLS, Phillips-Perron and KPSS from arch and reads them

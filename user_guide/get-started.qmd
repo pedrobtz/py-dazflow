@@ -22,20 +22,23 @@ dazflow init my-model
 ```python
 import dazflow as dz
 
-cfg = dz.load_config("my-model/project.yaml")
+project = dz.project.load("my-model")
 ```
 
 ## Steps
 
-Each step is one call, `run(inputs, config)`, and a later step takes the
-earlier one's result as an argument instead of importing it.
+Each step is one call that takes data and its configuration, and a later
+step takes the earlier one's result as an argument instead of importing
+it. `project.run()` runs the pipeline in memory and writes nothing;
+`project.write(run)` writes the datasets, the reports and the run record.
 
 ```python
-ds = dz.ingest.run(cfg.ingest)
-ds = dz.clean.run(ds, cfg.clean).dataset
-ex = dz.explore.run(ds, cfg.explore)
-cand = dz.build.run(ds, cfg.build, explore=ex)
-sel = dz.select.run(ds, cfg.select, candidates=cand)
+run = project.run()                 # ingest, clean, explore
+ds = run.results["clean"].dataset
+ex = dz.explore.run(ds, project.step_config("explore"))
+cand = dz.build.run(ds, project.step_config("build"), explore=ex)
+sel = dz.select.run(ds, project.step_config("select"), candidates=cand)
+project.write(run)                  # reports/<step>/ and reports/record.json
 ```
 
 ## Gates and findings
@@ -45,8 +48,8 @@ is reported, never hidden, and is overridden only with a reason written
 in configuration.
 
 ```python
-sel.gate.passed
-sel.finding
+ex.gate.passed
+ex.finding.text
 ```
 
 ## Artefacts
@@ -55,7 +58,7 @@ Tables and figures carry stable identifiers and are ready for a Word
 document.
 
 ```python
-sel.artefacts["T5.1"].to_docx("ranking.docx")
+dz.render.write(ex.artefacts["T3.3"], "screen.docx")
 ```
 
 The same project runs from the command line:
