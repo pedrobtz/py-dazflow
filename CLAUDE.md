@@ -61,6 +61,11 @@ into an order of integration, lag search, HAC screen, sign gate).
 `ModelRecord`, `refit`), `src/dazflow/evaluation/` (splitters, metrics,
 rolling-origin `evaluate`) and `dazflow.testing.ModelContract`.
 
+2026-11-25, Stage 8: `steps/build.py`, `steps/select.py`,
+`models/_design.py` (`Design`), the build and select adapters, and
+`project.yaml: seed` passed to the steps. The default pipeline ends at
+select.
+
 ## Versions and dependents
 
 `v0.1.0` issue: see the roadmap header. Dependents: none.
@@ -166,6 +171,19 @@ To be written as stages land; see `.agents/design.md` §4 for the layers
 - `evaluation/`: `_base.py` (splitters, metrics, `Fold`), `_rolling.py`
   (`evaluate`, `Evaluation`). Shared by select and segment; steps import
   it, never each other.
+- `models/_design.py`: `Design` builds a candidate's target and drivers
+  from the series in levels (chains, lags, `trend`, sample). Build fits
+  through `Design.frames` and select evaluates and forecasts through the
+  same function and `Design.future`; never build the matrices another way,
+  or `models.refit`'s fingerprint check fails.
+- `steps/build.py` and `steps/select.py` take the series in levels (the
+  dataset explore received), not explore's transformed dataset; their
+  adapters find it by fingerprint (`StepInputs.dataset_with`). Neither
+  returns a dataset, so the latest dataset stays explore's. A candidate's
+  id is `<form>:<driver>+<driver>` (the form key for a benchmark), and its
+  checks are overridden as `<candidate>/<check>`. Select's numbers repeat
+  to about 1e-15 between runs (statsmodels' intervals move by an ulp), its
+  choice and confidence set exactly: compare results with a tolerance.
 - `tests/models/` has an `__init__.py` because `tests/checks/` already has
   a `test_contract.py`: without it the two basenames collide.
 - Never run `uv run --resolution lowest-direct` without restoring

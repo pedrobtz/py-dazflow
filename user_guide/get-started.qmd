@@ -33,11 +33,12 @@ it. `project.run()` runs the pipeline in memory and writes nothing;
 `project.write(run)` writes the datasets, the reports and the run record.
 
 ```python
-run = project.run()                 # ingest, clean, explore
-ds = run.results["clean"].dataset
+run = project.run()                 # ingest, clean, explore, build, select
+ds = run.results["clean"].dataset   # the series in levels
 ex = dz.explore.run(ds, project.step_config("explore"))
 cand = dz.build.run(ds, project.step_config("build"), explore=ex)
-sel = dz.select.run(ds, project.step_config("select"), candidates=cand)
+sel = dz.select.run(ds.with_scenarios(scenarios, severity), build=cand)
+sel.chosen, sel.decision            # proposed by the default rule until confirmed
 project.write(run)                  # reports/<step>/ and reports/record.json
 ```
 
