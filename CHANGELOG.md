@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+- `dz.models`: model forms behind one interface, `fit(y, X)` returning a
+  fitted model with `params`, `cov_params`, `residuals`, `spec` and
+  `predict(h, X_future, levels)`, which returns a `Forecast` (mean path
+  and prediction intervals). Forms: `naive`, `seasonal_naive`, `mean`,
+  `ols`, `glm` (binomial for shares, the fractional logit), `arimax`
+  (statsmodels `SARIMAX`) and `ets` (statsmodels `ETSModel`, additive).
+  A fitted model is stored as a `ModelRecord` (specification, parameters,
+  covariance, data fingerprint), never pickled, and `models.refit` fits it
+  again from the record on the same data.
+- `dz.evaluation`: `expanding` and `rolling` splitters, the `mae`, `rmse`,
+  `mase` and `coverage` metrics, and `evaluate`, the rolling-origin
+  evaluation that refits a form at successive origins and scores its
+  forecasts overall and by horizon.
+- `dazflow.testing.ModelContract`: the contract every model form passes,
+  for plugin authors' tests.
+- New errors `ModelError` and `EvaluationError`.
+
 - The `dazflow` command: `init` (a project folder with every default
   written out and commented, and example data that runs), `validate`
   (configuration and inputs, without running a step), one command per step

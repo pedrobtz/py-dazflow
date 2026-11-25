@@ -57,6 +57,10 @@ into an order of integration, lag search, HAC screen, sign gate).
 2026-11-25, Stage 6: `src/dazflow/pipeline/`, `src/dazflow/project/`,
 `src/dazflow/cli/` (the `dazflow` command) and `examples/loss-rate`.
 
+2026-11-25, Stage 7: `src/dazflow/models/` (seven forms, `Forecast`,
+`ModelRecord`, `refit`), `src/dazflow/evaluation/` (splitters, metrics,
+rolling-origin `evaluate`) and `dazflow.testing.ModelContract`.
+
 ## Versions and dependents
 
 `v0.1.0` issue: see the roadmap header. Dependents: none.
@@ -150,6 +154,20 @@ To be written as stages land; see `.agents/design.md` §4 for the layers
 - `cli/`: typer, built on import; each registered step gets a command.
   Commands catch `DazflowError` (message to stderr, exit 1); a failed gate
   is exit 2.
+- `models/`: `_base.py` (`Model`/`Fitted` protocols, `registry`,
+  `register`, `ModelForm` and `FittedModel` base classes, `Forecast`,
+  `ModelSpec`, `ModelRecord`, `refit`), `_builtin.py` (the seven forms).
+  Import statsmodels and scipy inside `_fit`/`_predict`. A form's `drivers`
+  attribute says whether it takes `X`. Residuals are `y - fitted` for every
+  form. Optimised forms pass `start_params=_round_start(model.start_params)`
+  (D36), or a refit is not repeatable to 1e-10. A new form's test belongs
+  in `tests/models/test_wrappers.py` (equality with the direct call) and in
+  `BUILT_INS` of `tests/models/test_contract.py`.
+- `evaluation/`: `_base.py` (splitters, metrics, `Fold`), `_rolling.py`
+  (`evaluate`, `Evaluation`). Shared by select and segment; steps import
+  it, never each other.
+- `tests/models/` has an `__init__.py` because `tests/checks/` already has
+  a `test_contract.py`: without it the two basenames collide.
 - Never run `uv run --resolution lowest-direct` without restoring
   `uv.lock` afterwards: it rewrites the lock with the lowest versions.
 - Tests that need an extra carry `@pytest.mark.extra("<distribution>")`

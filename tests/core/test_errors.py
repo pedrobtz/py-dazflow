@@ -18,6 +18,8 @@ CLASSES = [
     errors.PipelineError,
     errors.ProjectError,
     errors.RecordError,
+    errors.ModelError,
+    errors.EvaluationError,
 ]
 
 

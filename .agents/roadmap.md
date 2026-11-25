@@ -57,7 +57,7 @@ checks something the stage introduces and later stages build on.
 | 4 | [Clean](#stage-4--clean) | quick | [#6](https://github.com/pedrobtz/py-dazflow/issues/6) | [#24](https://github.com/pedrobtz/py-dazflow/pull/24) | 2026-11-25 |
 | 5 | [Explore](#stage-5--explore) | quick | [#7](https://github.com/pedrobtz/py-dazflow/issues/7) | [#25](https://github.com/pedrobtz/py-dazflow/pull/25) | 2026-11-25 |
 | 6 | [Pipeline, record and command line](#stage-6--pipeline-record-and-command-line) | quick | [#8](https://github.com/pedrobtz/py-dazflow/issues/8) | [#26](https://github.com/pedrobtz/py-dazflow/pull/26) | 2026-11-25 |
-| 7 | [Model forms and evaluation](#stage-7--model-forms-and-evaluation) | full | [#9](https://github.com/pedrobtz/py-dazflow/issues/9) | | |
+| 7 | [Model forms and evaluation](#stage-7--model-forms-and-evaluation) | full | [#9](https://github.com/pedrobtz/py-dazflow/issues/9) | [#27](https://github.com/pedrobtz/py-dazflow/pull/27) | 2026-11-25 |
 | 8 | [Build and select](#stage-8--build-and-select) | quick | [#10](https://github.com/pedrobtz/py-dazflow/issues/10) | | |
 | 9 | [Forecast](#stage-9--forecast) | quick | [#11](https://github.com/pedrobtz/py-dazflow/issues/11) | | |
 | 10 | [Diagnose](#stage-10--diagnose) | quick | [#12](https://github.com/pedrobtz/py-dazflow/issues/12) | | |
@@ -494,6 +494,22 @@ interface, and rolling-origin evaluation shared by every later step.
   lowest-direct-dependencies job.
 
 **Design.** [§6](design.md#6-extension), [§5.3](design.md#53-fitted-models).
+
+**As built** (2026-11-25). `dz.models` holds the seven forms (keys
+`naive`, `seasonal_naive`, `mean`, `ols`, `glm`, `arimax`, `ets`) behind
+`fit(y, X) -> Fitted` and `predict(h, X_future, levels) -> Forecast`; a
+fitted model is stored as a `ModelRecord` (format 1, design §5.3) and
+rebuilt by `models.refit`, which checks the data fingerprint (D36).
+`dz.evaluation` holds the `expanding` and `rolling` splitters, the `mae`,
+`rmse`, `mase` and `coverage` metrics and `evaluate`, the rolling-origin
+evaluation that returns an `Evaluation` (D37). `dazflow.testing` adds
+`ModelContract`. The refit test holds at 1e-10 because ARIMAX and ETS
+start from statsmodels' start values rounded to 10 significant digits;
+without the rounding a seasonal ARIMAX moved 7e-5 between two refits on
+one machine (D36). Across machines the optimised forms agree only to the
+optimiser's convergence, which Stage 11's replay tolerance must allow
+for. ETS is additive only (D36); there is no `holdout` splitter, which is
+`expanding` with `folds: 1`. No dependency changed.
 
 ## Stage 8 — Build and select
 

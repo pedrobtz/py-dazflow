@@ -282,6 +282,52 @@ A fitted model is stored as its specification, parameters, covariance
 and the fingerprint of the data it was fitted on. It is never pickled.
 Replay and version loading refit and compare (§10).
 
+Settled 2026-11-25 (Stage 7, D36). The stored form is
+`dazflow.models.ModelRecord`, from `fitted.record()`, written by
+`to_dict()` as strict JSON (non-finite floats as `"NaN"`, `"Infinity"`):
+
+```json
+{
+  "kind": "dazflow.model",
+  "format": 1,
+  "spec": {"form": "arimax",
+           "config": {"order": [1, 0, 0], "seasonal_order": [0, 0, 0, 0],
+                      "trend": "c", "maxiter": 200},
+           "target": "loss", "drivers": ["gdp", "rate"]},
+  "sample": {"start": "2000Q1", "end": "2019Q4", "observations": 80,
+             "frequency": "Q-DEC"},
+  "data": "<Dataset fingerprint of the target and drivers, §5.1.1>",
+  "params": {"intercept": 0.12, "gdp": 0.03, "rate": -0.02,
+             "ar.L1": 0.6, "sigma2": 0.0004},
+  "cov_params": [[...], ...]
+}
+```
+
+- `spec` is the `ModelSpec`: the registry key of the form, its `Config`
+  with every default filled in (`model_dump(mode="json")`, so tuples are
+  lists), the target's name and the drivers in fitting order. It is all a
+  refit needs besides the data.
+- `params` keeps the form's own order and names (statsmodels' names for
+  the wrapped forms); `cov_params` is the covariance in that order, row by
+  row.
+- `data` is the fingerprint of `Dataset(frame)` where `frame` is the
+  target followed by the drivers, so the format needs no new canonical
+  form; `sample` repeats the periods for messages.
+- `models.refit(record, y, X)` refuses data with another fingerprint
+  (`ModelError`), builds the form from `spec` and fits again;
+  `record.difference(fitted)` is the largest absolute parameter change, and
+  `refit(..., tolerance=t)` refuses one above `t`. A record of another
+  `format` is refused; a field that changes meaning raises the format.
+- Refitting the same data on the same machine gives the same parameters
+  to 1e-10 for every built-in form (`tests/models/test_refit.py`), because
+  the optimised forms start from statsmodels' start values rounded to 10
+  significant digits (D36). Across machines (Stage 11 replay, §10.2
+  versions) the closed-form forms (the benchmarks, OLS, GLM) still agree
+  to about 1e-10, while the optimised forms (ARIMAX, ETS) agree only to
+  the optimiser's convergence: a one-ulp change in the start moved a
+  seasonal ARIMAX up to 7e-5 on the test data. Replay compares those
+  against a tolerance set from the standard errors, which Stage 11 fixes.
+
 ## 6 Extension
 
 Every component kind is a `typing.Protocol` with a registry. Built-ins
@@ -342,6 +388,53 @@ Transforms and readers, settled 2026-11-25 (Stage 3, D27):
 `residuals` and `spec`. Seasonal naive, VAR and VECM are model forms too.
 `Forecast` holds the mean path and intervals at configured levels, per
 scenario when there are scenarios.
+
+Models, splitters and metrics, settled 2026-11-25 (Stage 7, D36, D37):
+
+- **Model forms** (`dz.models`, `registry`, `register`, `get`) are classes
+  with a `Config`, built from it (`models.get("arimax")(order=(1, 0, 0))`
+  or `Form(config)`), and `fit(y, X=None)`: `y` a float `pd.Series` on a
+  `PeriodIndex`, `X` a `pd.DataFrame` on the same periods, neither with a
+  missing value (`ModelError`). `ModelForm` is the base class of the
+  built-ins; a form's class attribute `drivers` says whether it takes `X`,
+  and a form without drivers refuses them. Built-in keys: `naive`,
+  `seasonal_naive` (`season`, default from the frequency), `mean`, `ols`
+  (`constant`, `cov_type`, `hac_maxlags`), `glm` (`family` binomial or
+  gaussian, `constant`, `scale` X2, dev or fixed, `cov_type`), `arimax`
+  (`order`, `seasonal_order`, `trend`, `maxiter`) and `ets` (`error`,
+  `trend`, `damped_trend`, `seasonal`, `seasonal_periods`, `maxiter`).
+- **Fitted** (`models.Fitted` protocol, `FittedModel` base): `spec`,
+  `params` (`pd.Series`), `cov_params` (`pd.DataFrame`), `residuals`
+  (`y` minus the in-sample one-step fitted value, on the target's scale,
+  for every form), `fitted_values`, `notes` (statsmodels' fit warnings),
+  `record()` and `predict(h, X_future=None, levels=(0.8, 0.95))`.
+  `X_future` holds the drivers' values for the `h` periods after the
+  sample, indexed by those periods or by position.
+- **Forecast** (`models.Forecast`) is data: `form`, `frequency`, `periods`
+  (text), `mean`, `levels`, and `lower`/`upper`, one path per level, the
+  central prediction interval holding that probability; `frame()` and
+  `interval(level)` give pandas. One `Forecast` is one driver path; the
+  forecast step (Stage 9) calls `predict` once per scenario.
+- **Splitters** (`dz.evaluation.splitters`): `expanding` (`initial`,
+  default half the series; `horizon`, `step`, `folds`) and `rolling`
+  (`window`, `horizon`, `step`, `folds`). `split(index)` returns `Fold`s of
+  half-open positions `train` and `test`; every fold tests a full
+  `horizon`, the last test period is the last period, and `folds` keeps
+  the last origins. Holdout is `expanding` with `folds: 1`.
+- **Metrics** (`dz.evaluation.metrics`): `mae`, `rmse`, `mase` (`season`,
+  default 1) and `coverage` (`level`, default 0.95), each
+  `score(actual, forecast, *, scale=None, train=None, lower=None,
+  upper=None)`, ignoring keywords it does not use.
+- **Rolling-origin evaluation**: `evaluation.evaluate(model, y, X=None, *,
+  splitter=None, metrics=("mae", "rmse", "mase", "coverage"),
+  levels=(0.8, 0.95)) -> Evaluation` refits the form at every origin
+  (default `expanding`, one step), forecasts the fold's horizon with the
+  drivers' actual values, and scores each metric over every forecast and
+  by horizon. `Evaluation` is data: `spec`, `splitter`,
+  `splitter_config`, `levels`, `folds`, `rows` (fold, origin, period,
+  horizon, actual, forecast, bounds) and `scores` (`metric`, `config`,
+  `horizon`, `value`; `horizon: null` over all rows), with
+  `score(metric, horizon=None)` and `frame()`.
 
 ```python
 import dazflow as dz
@@ -1029,7 +1122,10 @@ Each statistical result needs an oracle, not just a passing run.
   configured), `ProjectError` (a project folder cannot be created, read or
   written) and `RecordError` (a run record or a stored dataset cannot be
   read, is of another version or does not match its fingerprint)
-  (2026-11-25).
+  (2026-11-25). Stage 7 adds `ModelError` (a form cannot be fitted,
+  predicted or refitted as asked, such as missing values, refused drivers
+  or data with another fingerprint) and `EvaluationError` (a splitter,
+  metric or evaluation cannot run as configured) (2026-11-25).
 - **D18.** Registry: `Registry(kind, protocol=None)`, `@registry.register(key)`
   and `registry.add(key, obj)`; keys are non-empty strings registered once
   (`DuplicateKeyError`); a component lacking a protocol member is refused;
@@ -1061,7 +1157,13 @@ Each statistical result needs an oracle, not just a passing run.
   `dz.project` (`Project`, `ProjectConfig`, `init`, `load`,
   `write_dataset`, `read_dataset`, `commented_yaml`), the errors
   `dz.PipelineError`, `dz.ProjectError` and `dz.RecordError`, and the
-  `dazflow` console script (`dazflow.cli:main`) (2026-11-25).
+  `dazflow` console script (`dazflow.cli:main`) (2026-11-25). Stage 7 adds
+  `dz.models` (`registry`, `register`, `get`, `Model`, `ModelForm`,
+  `Fitted`, `FittedModel`, `Forecast`, `ModelSpec`, `ModelRecord`,
+  `Sample`, `refit`, `fingerprint`, `season_length`), `dz.evaluation`
+  (`splitters`, `metrics`, `Fold`, `evaluate`, `Evaluation`, the built-in
+  classes), `dz.ModelError`, `dz.EvaluationError`, and in
+  `dazflow.testing` the `ModelContract` and `sample_series` (2026-11-25).
 - **D21.** Artefact identifiers: `T`, `F` and `S` (findings) with the §7
   step number and a number declared per artefact in `ArtefactIds`;
   `StepResult.artefacts` is sorted by identifier (2026-11-25, Stage 2:
@@ -1191,6 +1293,43 @@ Each statistical result needs an oracle, not just a passing run.
   recorded as written; the previous vintage is `project.yaml: previous`; a
   failed gate stops the run after that step with exit code 2 (2026-11-25,
   Stage 6: see §10).
+
+- **D36.** Model forms are classes built from their `Config`, fitted as
+  `fit(y, X)` on a `PeriodIndex`, and stored as a `ModelRecord` (format 1,
+  §5.3): specification, parameters, covariance and the `Dataset`
+  fingerprint of the target and drivers; residuals are `y` minus the
+  one-step fitted value for every form (2026-11-25, Stage 7: metrics and
+  diagnostics compare forms on one scale; the fingerprint reuses §5.1.1).
+  The benchmarks are own code checked against the statsmodels models they
+  equal: `naive` is ARIMA(0,1,0) and `seasonal_naive` the seasonal random
+  walk, each with the maximum-likelihood `sigma2` and statsmodels'
+  forecast interval, and `mean` is OLS on a constant with its t-based
+  prediction interval. GLM intervals are `mean ± z sqrt(scale V(mean) +
+  se²)`, clipped to [0, 1] for binomial, because statsmodels gives only
+  the interval of the mean, which a new observation falls outside far more
+  often than the level says; the default `scale: X2` makes the binomial
+  form the fractional logit. ARIMAX residuals leave out the diffuse
+  burn-in (`max(loglikelihood_burn, nobs_diffuse)`). ETS takes additive
+  errors, trend and season only, the models with exact statsmodels
+  intervals; multiplicative ones need simulated intervals, whose random
+  state argument changed between statsmodels 0.14 and 0.15, and wait until
+  a stage needs them. The optimised forms (ARIMAX, ETS) start from
+  statsmodels' start values rounded to 10 significant digits: the start
+  comes from a least-squares fit whose last bit depends on memory
+  alignment, and without the rounding a refit of the same data on the same
+  machine moved a seasonal ARIMAX by up to 7e-5, against the 1e-10 the
+  roadmap asks for. Statsmodels' fit warnings (convergence, start values)
+  are kept in `Fitted.notes` rather than raised.
+- **D37.** Splitters return folds of positions with a full test horizon,
+  the last fold ending at the last period; metrics are classes with a
+  `Config` and `score(actual, forecast, ...)`; MASE divides each fold's
+  errors by that fold's in-sample (seasonal) naive mean absolute error and
+  averages the scaled errors (Hyndman and Koehler, 2006); rolling-origin
+  evaluation lives in `dz.evaluation` and returns an `Evaluation` that is
+  data (2026-11-25, Stage 7: select and a later segment share it, and a
+  result crossing a step boundary holds no third-party object). Folds
+  with a partial horizon are not made, so every horizon is scored on the
+  same origins.
 
 ## 15 Build order
 
