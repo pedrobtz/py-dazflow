@@ -17,6 +17,7 @@ __all__ = [
     "forecast",
     "ingest",
     "registry",
+    "report",
     "select",
 ]
 
@@ -33,7 +34,7 @@ class Step(Protocol):
 
 registry = Registry("step", protocol=Step)
 
-from dazflow.steps import build, clean, diagnose, explore, forecast, ingest, select  # noqa: E402 - the registry exists before the steps register
+from dazflow.steps import build, clean, diagnose, explore, forecast, ingest, report, select  # noqa: E402 - the registry exists before the steps register
 
 registry.add("ingest", ingest)
 registry.add("clean", clean)
@@ -42,3 +43,4 @@ registry.add("build", build)
 registry.add("select", select)
 registry.add("forecast", forecast)
 registry.add("diagnose", diagnose)
+registry.add("report", report)

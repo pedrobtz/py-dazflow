@@ -2,7 +2,7 @@
 
 >>> from dazflow import pipeline
 >>> pipeline.Pipeline().steps
-('ingest', 'clean', 'explore', 'build', 'select', 'forecast')
+('ingest', 'clean', 'explore', 'build', 'select', 'forecast', 'diagnose', 'report')
 
 A step joins a pipeline by name once it is in `dazflow.steps.registry`. The
 pipeline calls it through its adapter in `adapters` (``@register_adapter(name)``),
@@ -29,23 +29,39 @@ from dazflow.pipeline._record import (
     RunRecord,
     environment,
 )
+from dazflow.pipeline._replay import (
+    ATOL,
+    RTOL,
+    Difference,
+    Replay,
+    compare,
+    compare_records,
+    replay,
+)
 
 __all__ = [
+    "ATOL",
     "DEFAULT_STEPS",
     "RECORD_KIND",
+    "RTOL",
     "SCHEMA_VERSION",
     "Adapter",
     "DatasetRecord",
+    "Difference",
     "Environment",
     "InputRecord",
     "Pipeline",
+    "Replay",
     "Run",
     "RunInfo",
     "RunRecord",
     "StepInputs",
     "adapters",
+    "compare",
+    "compare_records",
     "default_adapter",
     "environment",
     "file_sha256",
     "register_adapter",
+    "replay",
 ]

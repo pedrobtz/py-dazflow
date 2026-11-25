@@ -41,11 +41,10 @@ def close(a, b, path="$"):
 
 
 def library(root):
-    """The steps called directly, the input paths resolved by hand."""
+    """The steps called directly, the input paths read from the project folder."""
     proj = dz.project.load(root)
     cfg = proj.step_config("ingest")
-    inputs = [i.model_copy(update={"path": str(root / i.path)}) for i in cfg.inputs]
-    ing = ingest.run(cfg.model_copy(update={"inputs": inputs}))
+    ing = ingest.run(cfg, root=root)
     cl = clean.run(ing.dataset, proj.step_config("clean"))
     ex = explore.run(cl.dataset, proj.step_config("explore"))
     return cfg, ing, cl, ex
@@ -62,13 +61,12 @@ def library_select(root, cl, ex):
 
 
 def test_step_commands_print_the_libraries_results(example):
-    cfg, ing, cl, ex = library(example)
+    _, ing, cl, ex = library(example)
 
     got = invoke("ingest", "-p", example, "--json")
     want = ing.to_dict()
-    # The only difference: the result keeps the path as configured, relative to the folder.
+    # The result keeps the path as configured, relative to the folder.
     assert got["config"]["inputs"][0]["path"] == "data/raw/series.csv"
-    want["config"] = cfg.model_dump(mode="json")
     assert got == want
 
     assert invoke("clean", "-p", example, "--json") == cl.to_dict()
@@ -88,7 +86,8 @@ def test_run_json_is_the_record_it_wrote(example):
 
 def test_the_record_holds_the_same_results_as_the_step_folders(ran_example):
     record = json.loads((ran_example / "reports" / "record.json").read_text(encoding="utf-8"))
-    for step in ("ingest", "clean", "explore", "build", "select", "forecast", "diagnose"):
+    steps = ("ingest", "clean", "explore", "build", "select", "forecast", "diagnose", "report")
+    for step in steps:
         folder = json.loads(
             (ran_example / "reports" / step / "result.json").read_text(encoding="utf-8")
         )
@@ -136,7 +135,16 @@ def test_validate_json(example):
     assert got == {
         "valid": True,
         "project": "loss-rate",
-        "steps": ["ingest", "clean", "explore", "build", "select", "forecast", "diagnose"],
+        "steps": [
+            "ingest",
+            "clean",
+            "explore",
+            "build",
+            "select",
+            "forecast",
+            "diagnose",
+            "report",
+        ],
         "inputs": [
             {"name": "macro", "path": "data/raw/series.csv"},
             {"name": "scenarios", "path": "data/raw/scenarios.csv"},

@@ -24,6 +24,7 @@ CLASSES = [
     errors.SelectError,
     errors.ForecastError,
     errors.DiagnoseError,
+    errors.ReportError,
 ]
 
 

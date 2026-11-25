@@ -36,7 +36,9 @@ def test_run_on_the_example_exits_0_and_writes_the_record(example):
         "select",
         "forecast",
         "diagnose",
+        "report",
     ]
+    assert (example / "reports" / "document" / "document.docx").is_file()
 
 
 def test_a_configuration_error_exits_1(example):

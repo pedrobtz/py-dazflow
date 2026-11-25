@@ -70,7 +70,8 @@ class StepInputs:
     relative paths are read from (``None``: as given). `data` holds frames
     passed in memory, by input name; `previous` the previous data vintage;
     `seed` the project's seed (``project.yaml: seed``) for a step's random
-    draws. An adapter appends what it read to `inputs`.
+    draws. An adapter appends what it read to `inputs`. `record()` gives the
+    run record of the steps before this one, for a step that reports on them.
     """
 
     step: str
@@ -81,6 +82,19 @@ class StepInputs:
     previous: Dataset | None = None
     seed: int | None = None
     inputs: list[InputRecord] = field(default_factory=list)
+    # The run so far (a `Run` of the steps before this one) and the project configuration.
+    recorder: Callable[[], Any] | None = field(default=None, repr=False)
+    project: Any = field(default=None, repr=False)
+
+    def record(self) -> Any:
+        """The `RunRecord` of the run so far: every step before this one, run or carried."""
+        if self.recorder is None:
+            raise PipelineError(
+                f"the step {self.step!r} needs the run record and was not called by a pipeline",
+                observed="StepInputs.recorder is None",
+                change="Run the step through dazflow.pipeline.Pipeline, or pass it a record.",
+            )
+        return self.recorder().record(self.project)
 
     def resolve(self, path: str | Path) -> Path:
         """`path` read from the project folder when it is relative and there is one."""
@@ -140,18 +154,11 @@ def default_adapter(step: Any, config: Config, inputs: StepInputs) -> StepResult
 
 @register_adapter("ingest")
 def _ingest(step: Any, config: Config, inputs: StepInputs) -> StepResult:
-    # Paths are read from the project folder; the result keeps them as written,
-    # so the record does not depend on where the folder is.
+    # Paths are read from the project folder and kept as written, in the result and in the
+    # dataset's series sources, so neither depends on where the folder is (design D35).
     data = dict(inputs.data or {})
-    resolved = []
+    result = step.run(config, data=data or None, root=inputs.root)
     for inp in config.inputs:
-        if inp.path is not None and inp.name not in data:
-            path = inputs.resolve(inp.path)
-            resolved.append(inp.model_copy(update={"path": str(path)}))
-        else:
-            resolved.append(inp)
-    result = step.run(config.model_copy(update={"inputs": resolved}), data=data or None)
-    for inp, res in zip(config.inputs, resolved, strict=True):
         if inp.name in data:
             frame = readers.from_frame(
                 data[inp.name], date=inp.date, frequency=inp.frequency, columns=inp.columns
@@ -168,10 +175,10 @@ def _ingest(step: Any, config: Config, inputs: StepInputs) -> StepResult:
                     name=inp.name,
                     path=inp.path,
                     kind="file-sha256",
-                    fingerprint=file_sha256(res.path),
+                    fingerprint=file_sha256(inputs.resolve(inp.path)),
                 )
             )
-    return result.model_copy(update={"config": config})
+    return result
 
 
 @register_adapter("clean")
@@ -266,3 +273,10 @@ def _diagnose(step: Any, config: Config, inputs: StepInputs) -> StepResult:
         )
     )
     return result
+
+
+@register_adapter("report")
+def _report(step: Any, config: Config, inputs: StepInputs) -> StepResult:
+    # Report is built from the run record alone (design §7.10): the record of every step
+    # before it, as it would be written now.
+    return step.run(inputs.record(), config)

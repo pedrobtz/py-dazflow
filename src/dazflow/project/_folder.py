@@ -229,6 +229,7 @@ class Project:
             earlier_configs=earlier_configs,
             earlier_record=record,
             seed=self.config.seed,
+            project=self.config,
         )
 
     # --- write -----------------------------------------------------------------
@@ -245,6 +246,8 @@ class Project:
         record = run.record(self.config, datasets)
         for name in run.steps:
             self._write_reports(name, run.results[name], record)
+            if getattr(run.results[name], "document", None) is not None:
+                self._write_document(run.results[name], record)
         self.record_path.parent.mkdir(parents=True, exist_ok=True)
         record.dump(self.record_path)
         return record
@@ -282,6 +285,93 @@ class Project:
             newline="\n",
         )
 
+    def _write_document(self, result: Any, record: RunRecord) -> None:
+        # The report's document and replay script (design §10: reports/document/). Every
+        # table and figure gets the source note of the final record: its run id, the
+        # dataset of the step it belongs to (the last dataset for the report's own) and
+        # the date.
+        from dazflow.core.artefact import STEP_NUMBERS, Source, parse_id
+        from dazflow.render import load_style, write
+        from dazflow.render.document import with_source
+
+        folder = self.root / "reports" / "document"
+        if folder.exists():
+            shutil.rmtree(folder)
+        folder.mkdir(parents=True)
+        date = dt.date.fromisoformat(record.run.finished[:10])
+        by_number = {n: s for s, n in STEP_NUMBERS.items()}
+        prints = {s: d.fingerprint for s, d in record.datasets.items()}
+        last = next(reversed(prints.values()), None)
+
+        def source(item: Any) -> Source | None:
+            step = by_number.get(parse_id(item.id)[1])
+            fp = prints.get(step, last)
+            return None if fp is None else Source(run_id=record.run.id, fingerprint=fp, date=date)
+
+        def sourced(item: Any) -> Any:
+            from dazflow.core.artefact import Figure, Table
+            from dazflow.render.document import Section
+
+            if isinstance(item, Table | Figure):
+                return with_source(item, source(item))
+            if isinstance(item, Section):
+                return item.model_copy(update={"items": tuple(sourced(i) for i in item.items)})
+            return item
+
+        document = result.document.model_copy(
+            update={"sections": tuple(sourced(s) for s in result.document.sections)}
+        )
+        write(document, folder / result.config.file, style=load_style(self.style_path()))
+        if result.script is not None:
+            (folder / "replay.py").write_text(result.script, encoding="utf-8", newline="\n")
+
+    # --- replay ----------------------------------------------------------------
+
+    def replay(self, *, rtol: float | None = None, atol: float | None = None) -> Any:
+        """Rerun the last run from ``reports/record.json`` and compare (design §7.10, D43).
+
+        Every step is rerun from the configuration and inputs the record
+        holds, and every recorded result compared: floats within `rtol`
+        (`atol` near zero), everything else exactly. The project's current
+        configuration (``project.yaml`` and ``config/``, defaults filled in)
+        must also still be the recorded one: a setting changed since the run
+        is a difference too. The tolerance is the record's
+        ``config/report.yaml: replay`` unless given here. Writes nothing.
+        """
+        from dazflow.pipeline import ATOL, RTOL, compare, replay
+
+        record = self.record()
+        if record is None:
+            raise ProjectError(
+                "the project has not run yet, so there is no record to replay",
+                observed=f"no {RECORD_PATH} in {self.root}",
+                change="Run it first: dazflow run.",
+            )
+        tol = (record.config.get("report") or {}).get("replay") or {}
+        rtol = rtol if rtol is not None else tol.get("rtol", RTOL)
+        atol = atol if atol is not None else tol.get("atol", ATOL)
+        drift = []
+        if record.project is not None:
+            drift += [
+                d.model_copy(update={"note": f"{PROJECT_FILE} differs from the record"})
+                for d in compare(
+                    record.project, self.config.model_dump(mode="json"), path="project"
+                )
+            ]
+        for step, recorded in record.config.items():
+            drift += [
+                d.model_copy(update={"note": f"config/{step}.yaml differs from the record"})
+                for d in compare(
+                    recorded,
+                    self.step_config(step).model_dump(mode="json"),
+                    rtol=rtol,
+                    atol=atol,
+                    path=f"config.{step}",
+                )
+            ]
+        result = replay(record, root=self.root, rtol=rtol, atol=atol)
+        return result.model_copy(update={"differences": (*drift, *result.differences)})
+
 
 def load(root: str | Path = ".") -> Project:
     """The project in folder `root`."""
@@ -306,6 +396,9 @@ _HEADER = {
     "diagnose": "diagnose: the chosen model's residual tests, stability, back-test, sensitivity\n"
     "and anomalies (design §7.8). Each test is a threshold check; tests that do not apply to\n"
     "the model's form are listed as such.",
+    "report": "report: the Word document of the run, built from reports/record.json, and the\n"
+    "replay script, both in reports/document/ (design §7.10). `dazflow replay` reruns every\n"
+    "step from the record and compares every recorded number.",
     "forecast": "forecast: the chosen model under every scenario of config/select.yaml, anchored at\n"
     "the origin and back on the target's scale with intervals (design §7.7).",
 }

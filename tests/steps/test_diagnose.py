@@ -429,7 +429,7 @@ def test_diagnose_is_a_registered_step_with_an_adapter():
 
     assert registry.get("diagnose") is diagnose
     assert "diagnose" in adapters
-    assert DEFAULT_STEPS[-1] == "diagnose"
+    assert DEFAULT_STEPS[-2:] == ("diagnose", "report")
 
 
 # --- refusals and edges ------------------------------------------------------------

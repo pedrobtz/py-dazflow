@@ -1,0 +1,15 @@
+# report: the Word document of the run, built from reports/record.json, and the
+# replay script, both in reports/document/ (design §7.10). `dazflow replay` reruns every
+# step from the record and compares every recorded number.
+
+# The document's title; unset: the project name.
+title: null
+# The Word file written to reports/document/.
+file: document.docx
+# The tolerance of `dazflow replay` and of the replay script.
+replay:
+  # Relative tolerance for floats; all else matches exactly.
+  rtol: 1.0e-09
+  # Absolute tolerance for floats near zero, in their own units.
+  atol: 1.0e-12
+overrides: []
