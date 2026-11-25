@@ -59,7 +59,7 @@ checks something the stage introduces and later stages build on.
 | 6 | [Pipeline, record and command line](#stage-6--pipeline-record-and-command-line) | quick | [#8](https://github.com/pedrobtz/py-dazflow/issues/8) | [#26](https://github.com/pedrobtz/py-dazflow/pull/26) | 2026-11-25 |
 | 7 | [Model forms and evaluation](#stage-7--model-forms-and-evaluation) | full | [#9](https://github.com/pedrobtz/py-dazflow/issues/9) | [#27](https://github.com/pedrobtz/py-dazflow/pull/27) | 2026-11-25 |
 | 8 | [Build and select](#stage-8--build-and-select) | quick | [#10](https://github.com/pedrobtz/py-dazflow/issues/10) | [#28](https://github.com/pedrobtz/py-dazflow/pull/28) | 2026-11-25 |
-| 9 | [Forecast](#stage-9--forecast) | quick | [#11](https://github.com/pedrobtz/py-dazflow/issues/11) | | 2026-11-25 |
+| 9 | [Forecast](#stage-9--forecast) | quick | [#11](https://github.com/pedrobtz/py-dazflow/issues/11) | [#29](https://github.com/pedrobtz/py-dazflow/pull/29) | 2026-11-25 |
 | 10 | [Diagnose](#stage-10--diagnose) | quick | [#12](https://github.com/pedrobtz/py-dazflow/issues/12) | | |
 | 11 | [Report and replay](#stage-11--report-and-replay) | quick | [#13](https://github.com/pedrobtz/py-dazflow/issues/13) | | |
 | 12 | [Documentation site](#stage-12--documentation-site) | quick | [#14](https://github.com/pedrobtz/py-dazflow/issues/14) | | |
