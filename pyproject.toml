@@ -82,6 +82,7 @@ dev = [
     "syrupy>=4.6",
     "twine>=6.1",
     "jsonschema>=4.21",
+    "pytest-xdist>=3.6",
 ]
 
 [tool.ruff]
