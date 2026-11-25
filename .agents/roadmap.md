@@ -52,7 +52,7 @@ checks something the stage introduces and later stages build on.
 | --- | --- | --- | --- | --- | --- |
 | 0 | [Package identity](#stage-0--package-identity) | quick | [#2](https://github.com/pedrobtz/py-dazflow/issues/2) | [#20](https://github.com/pedrobtz/py-dazflow/pull/20) | 2026-11-25 |
 | 1 | [Core objects](#stage-1--core-objects) | full | [#3](https://github.com/pedrobtz/py-dazflow/issues/3) | [#21](https://github.com/pedrobtz/py-dazflow/pull/21) | 2026-11-25 |
-| 2 | [Artefacts and rendering](#stage-2--artefacts-and-rendering) | full | [#4](https://github.com/pedrobtz/py-dazflow/issues/4) | | 2026-11-25 |
+| 2 | [Artefacts and rendering](#stage-2--artefacts-and-rendering) | full | [#4](https://github.com/pedrobtz/py-dazflow/issues/4) | [#22](https://github.com/pedrobtz/py-dazflow/pull/22) | 2026-11-25 |
 | 3 | [Transforms, readers and ingest](#stage-3--transforms-readers-and-ingest) | quick | [#5](https://github.com/pedrobtz/py-dazflow/issues/5) | | |
 | 4 | [Clean](#stage-4--clean) | quick | [#6](https://github.com/pedrobtz/py-dazflow/issues/6) | | |
 | 5 | [Explore](#stage-5--explore) | quick | [#7](https://github.com/pedrobtz/py-dazflow/issues/7) | | |
