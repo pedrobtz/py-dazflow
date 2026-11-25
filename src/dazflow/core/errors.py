@@ -19,11 +19,13 @@ __all__ = [
     "DatasetError",
     "DazflowError",
     "DuplicateKeyError",
+    "EvaluationError",
     "ExploreError",
     "FindingError",
     "GateError",
     "IngestError",
     "MissingExtraError",
+    "ModelError",
     "PipelineError",
     "PluginError",
     "ProjectError",
@@ -133,6 +135,14 @@ class CleanError(DazflowError):
 
 class ExploreError(DazflowError):
     """The explore step cannot profile, test or screen the series as configured."""
+
+
+class ModelError(DazflowError):
+    """A model form cannot be fitted, predicted or refitted as asked, such as missing values or drivers."""
+
+
+class EvaluationError(DazflowError):
+    """A splitter, metric or rolling-origin evaluation cannot run as configured."""
 
 
 class PipelineError(DazflowError):

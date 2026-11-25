@@ -2,7 +2,7 @@
 
 from importlib.metadata import PackageNotFoundError, version
 
-from dazflow import checks, core, pipeline, project, readers, transforms
+from dazflow import checks, core, evaluation, models, pipeline, project, readers, transforms
 from dazflow.core import *  # noqa: F403 - the core objects are the top-level API
 from dazflow.core import __all__ as _core_all
 from dazflow.steps import clean, explore, ingest
@@ -17,8 +17,10 @@ __all__ = [
     "checks",
     "clean",
     "core",
+    "evaluation",
     "explore",
     "ingest",
+    "models",
     "pipeline",
     "project",
     "readers",
