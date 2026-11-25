@@ -53,7 +53,7 @@ checks something the stage introduces and later stages build on.
 | 0 | [Package identity](#stage-0--package-identity) | quick | [#2](https://github.com/pedrobtz/py-dazflow/issues/2) | [#20](https://github.com/pedrobtz/py-dazflow/pull/20) | 2026-11-25 |
 | 1 | [Core objects](#stage-1--core-objects) | full | [#3](https://github.com/pedrobtz/py-dazflow/issues/3) | [#21](https://github.com/pedrobtz/py-dazflow/pull/21) | 2026-11-25 |
 | 2 | [Artefacts and rendering](#stage-2--artefacts-and-rendering) | full | [#4](https://github.com/pedrobtz/py-dazflow/issues/4) | [#22](https://github.com/pedrobtz/py-dazflow/pull/22) | 2026-11-25 |
-| 3 | [Transforms, readers and ingest](#stage-3--transforms-readers-and-ingest) | quick | [#5](https://github.com/pedrobtz/py-dazflow/issues/5) | | |
+| 3 | [Transforms, readers and ingest](#stage-3--transforms-readers-and-ingest) | quick | [#5](https://github.com/pedrobtz/py-dazflow/issues/5) | [#23](https://github.com/pedrobtz/py-dazflow/pull/23) | 2026-11-25 |
 | 4 | [Clean](#stage-4--clean) | quick | [#6](https://github.com/pedrobtz/py-dazflow/issues/6) | | |
 | 5 | [Explore](#stage-5--explore) | quick | [#7](https://github.com/pedrobtz/py-dazflow/issues/7) | | |
 | 6 | [Pipeline, record and command line](#stage-6--pipeline-record-and-command-line) | quick | [#8](https://github.com/pedrobtz/py-dazflow/issues/8) | | |
@@ -261,6 +261,18 @@ back.
 
 **Design.** [§7.1](design.md#71-ingest-import-and-align),
 [§6](design.md#6-extension).
+
+**As built** (2026-11-25). Transforms are named by a text form
+(`diff(lag=4)`) whose resolved parameters go into
+`SeriesMeta.transforms`, and invert from that text plus the untransformed
+history (D27). Readers read monthly, quarterly and annual data; daily and
+weekly data are not read in 0.1.0. Ingest converts to lower frequencies
+only, and one history figure, `F1.1`, holds every target, so D21 needed no
+per-series rule (D28). A result's `Dataset` is left out of `to_dict()`
+(D26). Definition changes over a series' history (§7.1) are not recorded
+yet. The Box-Cox lambda estimate is bounded by a configurable `bound`
+(default 2): unbounded, maximum likelihood gave lambda = -18 on three
+points, where the inverse loses every digit.
 
 ## Stage 4 — Clean
 

@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- `dz.transforms`: `diff`, `seasonal_diff`, `log`, `logdiff`, `growth`,
+  `logit` and `boxcox`, each with its inverse, named by a text form such
+  as `"diff(lag=4)"`. `forward()` returns the chain with its parameters
+  resolved, `apply()` records it in the series metadata, and `inverse()`
+  undoes it from the untransformed history, in sample or past its end.
+  A value outside a transform's domain raises `TransformError` naming the
+  series and the period.
+- `dz.readers`: csv, Excel and Parquet files (the last two with the
+  `dazflow[io]` extra; without it, `MissingExtraError` says what to
+  install) and pandas, polars or pyarrow frames, into a `Dataset` on
+  monthly, quarterly or annual periods read from the dates.
+- `dz.ingest`: the first step. It reads the inputs, puts every series on
+  one calendar by period-average or period-end, applies publication lags,
+  checks that every series was found and that the history is long
+  enough, and returns the dataset with a series inventory, a history
+  chart of the targets and a summary finding.
 - Artefacts: `Table` (labelled columns with units, unformatted cells,
   `from_frame()` and `from_gate()` with pass, fail and overridden marked in
   place), `Figure` (line, scatter, bar, band and reference-line layers),

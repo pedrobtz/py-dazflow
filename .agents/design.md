@@ -271,6 +271,10 @@ strings `"NaN"`, `"Infinity"`, `"-Infinity"` (strict JSON), and
 sorted tables first, then figures, then findings, each by step and number;
 a key must be the artefact's own `id`, and a finding's key has the form
 `S<step>.<n>` (2026-11-25, Stage 2, D21).
+A step that returns data holds its `Dataset` in a `dataset` field that
+`to_dict()` leaves out, with the dataset's `fingerprint` beside it;
+`from_dict()` rebuilds the rest with `dataset=None` (2026-11-25, Stage 3,
+D26: a frame is data, not a record field; the run record stores it).
 
 ### 5.3 Fitted models
 
@@ -295,14 +299,44 @@ built-in one.
 
 | Kind | Protocol (essential methods) | Built-ins |
 | --- | --- | --- |
-| Reader | `read(spec) -> Dataset` | csv, excel, parquet, sql |
+| Reader | `read(spec) -> Dataset` | csv, excel, parquet; sql later |
 | Check | `evaluate(obj) -> Check` | completeness, gaps, range, sign |
-| Transform | `forward`, `inverse` | diff, logdiff, log, logit, boxcox |
+| Transform | `resolve`, `forward`, `inverse`, `consumed` | diff, seasonal_diff, log, logdiff, growth, logit, boxcox |
 | Model | `fit(y, X) -> Fitted` | naive, mean, OLS, GLM, ARIMAX, ETS |
 | Metric | `score(actual, forecast)` | MAE, RMSE, MASE, coverage |
 | Splitter | `split(index) -> folds` | expanding, rolling, holdout |
 | Renderer | `render(artefact, path)` | docx, html, markdown, png, xlsx |
 | Step | `run(inputs, config) -> StepResult` | the ten steps of §7 |
+
+Transforms and readers, settled 2026-11-25 (Stage 3, D27):
+
+- **Transforms** (`dz.transforms`, keys as in the table) are classes with
+  a `Config` of parameters. Configuration names one by its text form,
+  `key` or `key(param=value, ...)` (`"diff(lag=4)"`); `forward(x, chain)`
+  applies a chain in order and returns the chain with every parameter
+  resolved (a seasonal period from the frequency, 12 monthly and 4
+  quarterly; a Box-Cox `lmbda` by maximum likelihood within
+  `[-bound, bound]`, default 2), and that resolved text is what
+  `SeriesMeta.transforms` records (`apply(dataset, column, chain)`). The
+  inverse takes the resolved chain and the untransformed `history`:
+  `inverse(y, chain, history)` rebuilds levels period by period, a
+  lagged value coming from `history` where it has one, so the same call
+  undoes an in-sample series and extends a forecast. Missing values stay
+  missing; a value outside a domain (log, logdiff and Box-Cox need
+  x > 0, logit 0 < x < 1, growth a non-zero earlier value, all finite
+  values) raises `TransformError` with the series and the first period.
+- **Readers** (`dz.readers`) take a `ReadSpec` (`reader`, `path`,
+  `date`, `frequency`, `columns`, `options` for the reader's own
+  `Config`) and return a `Dataset` at its own frequency, monthly,
+  quarterly or annual. The reader is named or read from the suffix
+  (`.csv`; `.xlsx`, `.xlsm`; `.parquet`, `.pq`). Dates are periods,
+  datetimes, years or text (`2024-03-31`, `2024-03`, `2024Q1`, `2024`);
+  with no `frequency`, the finest of M, Q and Y on which the dates fall in
+  distinct, mostly consecutive periods. Daily and weekly data are not read
+  in 0.1.0. Excel and Parquet import openpyxl and pyarrow when reading,
+  and raise `MissingExtraError` naming `dazflow[io]` without them.
+  `from_frame` takes pandas directly and polars or pyarrow through
+  narwhals.
 
 `Fitted` has `predict(h, X_future) -> Forecast`, `params`, `cov_params`,
 `residuals` and `spec`. Seasonal naive, VAR and VECM are model forms too.
@@ -356,6 +390,23 @@ per target.
 **Packages:** pandas; narwhals for polars and pyarrow input; openpyxl
 for Excel; SQLAlchemy for SQL; optional sdmx1, pandas-datareader,
 fredapi for public data.
+
+Settled 2026-11-25 (Stage 3, D28). `dz.ingest.run(config, data=None)`:
+`config.inputs` are `ReadSpec`s with a `name`, read from their `path` or
+taken from `data[name]`; `config.series` names each series, its input
+and column, role, unit, source, definition, expected sign, `aggregation`
+and `lag`; `config.frequency` is the calendar. A series moves only to a
+lower frequency: `average` gives a target period the mean of its native
+periods when all of them have a value, `end` the value of its last
+native period. A publication lag of L periods moves each value L periods
+later. The calendar runs from the first to the last period of any
+series. The gate has `found` (series not found, `<= 0`) and `history`
+(periods on which every target and driver has a value, `>=
+min_history`, default 40). Artefacts: `T1.1` series inventory, `T1.2`
+the gate, `F1.1` the history of every target in one figure (no target,
+no figure), `S1.1` the summary finding. One figure for all targets keeps
+D21 unchanged. Definition changes over a series' history are not yet
+recorded.
 
 ### 7.2 `clean`: data quality and treatment
 
@@ -787,7 +838,9 @@ Each statistical result needs an oracle, not just a passing run.
   per object for callers to catch). Stage 2 adds `ArtefactError` (a
   `Table`, `Figure`, `Source`, `Section`, `Document` or identifier is not
   valid) and `RenderError` (an artefact cannot be written in the format
-  asked for) (2026-11-25).
+  asked for) (2026-11-25). Stage 3 adds `TransformError` (with `series`
+  and `period`), `ReaderError`, its subclass `MissingExtraError` (with
+  `module` and `extra`) and `IngestError` (2026-11-25).
 - **D18.** Registry: `Registry(kind, protocol=None)`, `@registry.register(key)`
   and `registry.add(key, obj)`; keys are non-empty strings registered once
   (`DuplicateKeyError`); a component lacking a protocol member is refused;
@@ -807,7 +860,11 @@ Each statistical result needs an oracle, not just a passing run.
   `dz.Column`, `dz.Layer`, `dz.Source`, `dz.ArtefactIds`, `dz.STEP_NUMBERS`,
   `dz.ArtefactError` and `dz.RenderError`; `dz.render` is the rendering
   module, imported on first use so that `import dazflow` does not load
-  matplotlib, great-tables and python-docx (2026-11-25, Stage 2).
+  matplotlib, great-tables and python-docx (2026-11-25, Stage 2). Stage 3
+  adds `dz.transforms`, `dz.readers` and `dz.ingest` (the step module:
+  `Config`, `Result`, `run`, `IDS`), `dazflow.steps.registry` (steps by
+  name), and the errors `dz.TransformError`, `dz.ReaderError`,
+  `dz.MissingExtraError` and `dz.IngestError` (2026-11-25, Stage 3).
 - **D21.** Artefact identifiers: `T`, `F` and `S` (findings) with the §7
   step number and a number declared per artefact in `ArtefactIds`;
   `StepResult.artefacts` is sorted by identifier (2026-11-25, Stage 2:
@@ -842,6 +899,31 @@ Each statistical result needs an oracle, not just a passing run.
   and 0.005 for scales (matplotlib 3.8.4 and 3.11 measure text heights up
   to 0.5 pt apart), so one set of snapshots holds on every leg without
   raising a lower bound (2026-11-25, Stage 2).
+
+- **D26.** A step result that carries a `Dataset` holds it in an
+  excluded `dataset` field and records its `fingerprint`; `to_dict()`
+  leaves the frame out and `from_dict()` rebuilds the result with
+  `dataset=None` (2026-11-25, Stage 3: settles Stage 1's open point; a
+  frame in the run record's JSON would duplicate the data the record
+  stores beside it).
+- **D27.** Transforms are named by a text form, record their resolved
+  parameters in `SeriesMeta.transforms`, and invert from that text and
+  the untransformed history; readers return a `Dataset` at its own
+  monthly, quarterly or annual frequency, and an optional package is
+  imported when used, its absence a `MissingExtraError` naming the extra
+  (2026-11-25, Stage 3: the metadata field is a tuple of strings in the
+  fingerprint's canonical form, so the text form needs no new format;
+  importing on use lets the core job run without the extras). Box-Cox
+  is computed with `expm1`/`log1p` and a second-order series below
+  |lmbda| = 1e-12, because scipy 1.13's `inv_boxcox` is wrong at a
+  subnormal lmbda (found by the lowest-direct run).
+- **D28.** Ingest converts only to a lower frequency, by period-average
+  over complete periods or by the period-end value, applies publication
+  lags in target periods after conversion, and gates on series found
+  and the common history of targets and drivers; the history chart is
+  one figure `F1.1` holding every target (2026-11-25, Stage 3:
+  interpolating to a higher frequency is a modelling choice the design
+  does not make, and one figure needs no per-series identifier rule).
 
 ## 15 Build order
 
