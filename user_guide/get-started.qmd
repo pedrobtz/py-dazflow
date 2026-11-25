@@ -74,12 +74,36 @@ A model form, check or transform is registered once and then named in
 configuration like a built-in one.
 
 ```python
+class ThetaConfig(dz.Config):
+    theta: float = 2.0
+
 @dz.models.register("theta")
-class Theta:
+class Theta(dz.models.ModelForm):
     Config = ThetaConfig
 
-    def fit(self, y, X=None) -> dz.models.Fitted:
+    def _fit(self, y, X, spec) -> dz.models.FittedModel:
         ...
+```
+
+A form passes the same contract as the built-in ones:
+
+```python
+from dazflow.testing import ModelContract
+
+class TestTheta(ModelContract):
+    key = "theta"
+```
+
+Any form, built-in or not, can be scored out of sample by refitting it at
+successive origins:
+
+```python
+y, X = ...   # the target and its drivers, on a PeriodIndex
+ev = dz.evaluation.evaluate(
+    dz.models.get("ols")(), y, X,
+    splitter=dz.evaluation.Expanding(initial=40, horizon=4),
+)
+ev.score("mase"), ev.score("coverage")
 ```
 
 ```yaml
