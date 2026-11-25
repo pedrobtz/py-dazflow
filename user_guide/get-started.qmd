@@ -33,13 +33,34 @@ it. `project.run()` runs the pipeline in memory and writes nothing;
 `project.write(run)` writes the datasets, the reports and the run record.
 
 ```python
-run = project.run()                 # ingest, clean, explore, build, select
+run = project.run()                 # ingest, clean, explore, build, select,
+                                    # forecast, diagnose, report
 ds = run.results["clean"].dataset   # the series in levels
 ex = dz.explore.run(ds, project.step_config("explore"))
 cand = dz.build.run(ds, project.step_config("build"), explore=ex)
 sel = dz.select.run(ds.with_scenarios(scenarios, severity), build=cand)
 sel.chosen, sel.decision            # proposed by the default rule until confirmed
-project.write(run)                  # reports/<step>/ and reports/record.json
+record = project.write(run)         # reports/<step>/, reports/document/, reports/record.json
+```
+
+## Report and replay
+
+The report is built from the run record alone: a Word document with a
+contents list, a summary, every step's section in pipeline order and a
+configuration appendix, and a replay script beside it.
+
+```python
+doc = dz.report.run(record)
+doc.sections                        # Contents, Summary, one per step, two appendices
+```
+
+A replay reruns every step from the record and compares every recorded
+number with what it computes now: floats within a relative 1e-9, the rest
+exactly.
+
+```python
+replay = project.replay()
+replay.passed, replay.differences   # each difference: its path and both values
 ```
 
 ## Gates and findings
@@ -66,7 +87,10 @@ The same project runs from the command line:
 
 ```sh
 dazflow run --to select
-dazflow report
+dazflow run --from forecast
+dazflow report                      # reports/document/document.docx
+dazflow replay                      # exit 0 when the run reproduces its record
+python reports/document/replay.py   # the same, without the command line
 ```
 
 ## Your own components

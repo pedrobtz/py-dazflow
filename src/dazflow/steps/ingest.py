@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from pathlib import Path
 from typing import Any, Literal
 
 import numpy as np
@@ -132,7 +133,23 @@ def _fail(problem: str, observed: str, change: str) -> IngestError:
     return IngestError(problem, observed=observed, change=change)
 
 
-def _read(cfg: IngestConfig, data: Mapping[str, Any]) -> dict[str, Dataset]:
+def _read_file(inp: Any, root: Path | None) -> Dataset:
+    # A relative path is read from `root` and recorded as written, so the dataset (and its
+    # fingerprint) does not depend on where the project folder is (design D35).
+    path = Path(inp.path)
+    if root is None or path.is_absolute():
+        return readers.read(inp)
+    ds = readers.read(inp.model_copy(update={"path": str(root / path)}))
+    return Dataset(
+        ds.frame,
+        {c: m.model_copy(update={"source": inp.path}) for c, m in ds.series.items()},
+        log=ds.log,
+    )
+
+
+def _read(
+    cfg: IngestConfig, data: Mapping[str, Any], root: Path | None = None
+) -> dict[str, Dataset]:
     names = {i.name for i in cfg.inputs}
     extra = sorted(set(data) - names)
     if extra:
@@ -160,7 +177,7 @@ def _read(cfg: IngestConfig, data: Mapping[str, Any]) -> dict[str, Dataset]:
                 f"Give the input a path, or pass run(config, data={{{inp.name!r}: frame}}).",
             )
         else:
-            out[inp.name] = readers.read(inp)
+            out[inp.name] = _read_file(inp, root)
     return out
 
 
@@ -221,17 +238,22 @@ def _numeric(s: pd.Series, spec: SeriesSpec, input_name: str) -> pd.Series:
 
 
 def run(
-    config: IngestConfig | Mapping[str, Any], data: Mapping[str, Any] | None = None
+    config: IngestConfig | Mapping[str, Any],
+    data: Mapping[str, Any] | None = None,
+    *,
+    root: str | Path | None = None,
 ) -> IngestResult:
     """Read the inputs and put the configured series on one calendar.
 
     `data` maps input names to frames (pandas, polars, pyarrow) used
-    instead of reading a path. Prints nothing and writes no files.
+    instead of reading a path. `root` is the folder relative paths are read
+    from; each series' source is the path as written, so the dataset is the
+    same wherever the folder is. Prints nothing and writes no files.
     """
     cfg = config if isinstance(config, IngestConfig) else IngestConfig.model_validate(config)
     target = cfg.frequency
     singular, plural = _PERIOD[target]
-    inputs = _read(cfg, dict(data or {}))
+    inputs = _read(cfg, dict(data or {}), Path(root) if root is not None else None)
 
     aligned: dict[str, pd.Series] = {}
     meta: dict[str, SeriesMeta] = {}

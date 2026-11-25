@@ -21,7 +21,7 @@ def test_the_default_pipeline_is_the_built_steps():
     assert (
         Pipeline().steps
         == DEFAULT_STEPS
-        == ("ingest", "clean", "explore", "build", "select", "forecast", "diagnose")
+        == ("ingest", "clean", "explore", "build", "select", "forecast", "diagnose", "report")
     )
 
 
@@ -41,7 +41,15 @@ def test_a_pipeline_of_unknown_or_repeated_steps_is_refused(steps, match):
 def test_select_takes_from_and_to_in_pipeline_order():
     p = Pipeline()
     assert p.select() == DEFAULT_STEPS
-    assert p.select("clean") == ("clean", "explore", "build", "select", "forecast", "diagnose")
+    assert p.select("clean") == (
+        "clean",
+        "explore",
+        "build",
+        "select",
+        "forecast",
+        "diagnose",
+        "report",
+    )
     assert p.select(None, "clean") == ("ingest", "clean")
     assert p.select("clean", "clean") == ("clean",)
     with pytest.raises(dz.PipelineError, match="comes after"):
@@ -60,8 +68,7 @@ def test_the_pipeline_returns_what_the_steps_return(example):
     proj = dz.project.load(example)
     run = Pipeline().run(proj.configs(), root=example)
     cfg = proj.step_config("ingest")
-    inputs = [i.model_copy(update={"path": str(example / i.path)}) for i in cfg.inputs]
-    ing = ingest.run(cfg.model_copy(update={"inputs": inputs}))
+    ing = ingest.run(cfg, root=example)
     cl = clean.run(ing.dataset, proj.step_config("clean"))
     assert run.results["ingest"].fingerprint == ing.fingerprint
     assert run.results["clean"].to_dict() == cl.to_dict()

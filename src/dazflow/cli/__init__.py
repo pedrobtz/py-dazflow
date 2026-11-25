@@ -1,8 +1,9 @@
-"""The command line (design §11): ``dazflow init | validate | <step> | run | show | plugins``.
+"""The command line (design §11): ``dazflow init | validate | <step> | run | replay | show | plugins``.
 
 Every command calls the library: `dazflow.project` reads and writes the
 folder, `dazflow.pipeline` runs the steps. Exit codes: 0 success, 1 error
-(any `DazflowError`), 2 a step completed with a failed gate. ``--json``
+(any `DazflowError`), 2 a step completed with a failed gate, or a replay
+found a difference from its record. ``--json``
 prints the result as JSON on standard output.
 
 A step registered in `dazflow.steps.registry` (built in, or by a plugin)
@@ -162,6 +163,42 @@ def run_(
 ) -> int:
     """Run the pipeline's steps in order; stop after a step whose gate fails (exit 2)."""
     return _run(project_dir, start, stop, json_out, step=False)
+
+
+@app.command()
+@_guarded
+def replay(
+    project_dir: ProjectOpt = Path("."),
+    rtol: Annotated[
+        float | None,
+        typer.Option(help="Relative tolerance for floats; default config/report.yaml's."),
+    ] = None,
+    atol: Annotated[
+        float | None,
+        typer.Option(help="Absolute tolerance for floats near zero; default config/report.yaml's."),
+    ] = None,
+    json_out: JsonOpt = False,
+) -> int:
+    """Rerun every step from reports/record.json and compare; exit 2 on a difference."""
+    from dazflow.project import Project
+
+    result = Project.load(project_dir).replay(rtol=rtol, atol=atol)
+    if json_out:
+        _echo_json({"passed": result.passed, **result.model_dump(mode="json")})
+    else:
+        shown = result.differences[:_SHOWN]
+        for difference in shown:
+            typer.echo(str(difference))
+        if len(result.differences) > len(shown):
+            typer.echo(f"... and {len(result.differences) - len(shown)} more")
+        for note in result.notes:
+            typer.echo(f"note: {note}")
+        typer.echo(result.summary())
+    return EXIT_OK if result.passed else EXIT_GATE
+
+
+# Differences printed by `replay` without --json; --json prints them all.
+_SHOWN = 50
 
 
 @app.command()

@@ -86,7 +86,7 @@ def test_a_missing_schema_file_is_refused(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "step", ["ingest", "clean", "explore", "build", "select", "forecast", "diagnose"]
+    "step", ["ingest", "clean", "explore", "build", "select", "forecast", "diagnose", "report"]
 )
 def test_commented_yaml_reads_back_as_the_configuration(step):
     cls = registry.get(step).Config
@@ -94,6 +94,9 @@ def test_commented_yaml_reads_back_as_the_configuration(step):
         "ingest": dz.project._folder._example_ingest,
         "select": dz.project._folder._example_select,
         "diagnose": dz.project._folder._example_diagnose,
+        "report": lambda: cls.model_validate(
+            {"title": "Loss model: first draft", "replay": {"rtol": 1e-8}}
+        ),
         "forecast": lambda: cls.model_validate(
             {"reversion": {"level": 2.5}, "bounds": [0.0, None], "anchor": {"rule": "carry"}}
         ),
@@ -199,7 +202,8 @@ def test_validate_refuses_an_unknown_step_in_the_pipeline(example):
     path = example / "project.yaml"
     path.write_text(
         path.read_text().replace(
-            "[ingest, clean, explore, build, select, forecast, diagnose]", "[ingest, adjust]"
+            "[ingest, clean, explore, build, select, forecast, diagnose, report]",
+            "[ingest, adjust]",
         )
     )
     with pytest.raises(dz.PipelineError, match="adjust"):
@@ -272,3 +276,22 @@ def test_the_project_seed_reaches_select(example):
     run = dz.project.load(example).run()
     assert run.results["select"].seed == 17
     assert run.results["select"].confidence.seed == 17
+
+
+def test_a_dataset_does_not_depend_on_where_the_project_folder_is(example, tmp_path, monkeypatch):
+    # Design D35: input paths are read from the project folder and recorded as written.
+    # The series' source was the resolved path, so the same project in another folder (or
+    # run from another working directory) gave datasets of another fingerprint, and a
+    # replay of a moved folder failed on them.
+    import shutil
+
+    other = tmp_path / "elsewhere" / "deeper" / "loss-rate"
+    shutil.copytree(example, other)
+    monkeypatch.chdir(tmp_path)
+    a = dz.project.load(example).run(stop="ingest").results["ingest"]
+    b = dz.project.load(other).run(stop="ingest").results["ingest"]
+    assert {m.source for m in a.dataset.series.values()} == {"data/raw/series.csv"}
+    assert a.fingerprint == b.fingerprint == a.dataset.fingerprint()
+    monkeypatch.chdir(other)
+    c = dz.project.load(".").run(stop="ingest").results["ingest"]
+    assert c.fingerprint == a.fingerprint

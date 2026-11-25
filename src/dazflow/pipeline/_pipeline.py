@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import functools
 import hashlib
 import json
 from collections.abc import Mapping, Sequence
@@ -23,7 +24,7 @@ from dazflow.pipeline._adapters import (
     default_adapter,
     file_sha256,
 )
-from dazflow.pipeline._record import DatasetRecord, RunInfo, RunRecord, environment
+from dazflow.pipeline._record import DatasetRecord, Environment, RunInfo, RunRecord, environment
 from dazflow.readers._base import ReadSpec
 
 __all__ = ["DEFAULT_STEPS", "Pipeline", "Run"]
@@ -37,6 +38,7 @@ DEFAULT_STEPS: tuple[str, ...] = (
     "select",
     "forecast",
     "diagnose",
+    "report",
 )
 
 
@@ -66,6 +68,8 @@ class Run:
     stopped_at: str | None = None
     inputs: tuple[InputRecord, ...] = ()
     carried_record: RunRecord | None = field(default=None, repr=False)
+    # The environment to record; None: the running one. A replay passes the recorded one.
+    environment: Environment | None = field(default=None, repr=False)
 
     @property
     def passed(self) -> bool:
@@ -133,7 +137,7 @@ class Run:
             results=results,
             checks=tuple(checks),
             overrides=tuple(overrides),
-            environment=environment(),
+            environment=self.environment if self.environment is not None else environment(),
             inputs=tuple(inputs),
             datasets=records,
         )
@@ -242,6 +246,8 @@ class Pipeline:
         earlier_configs: Mapping[str, Config | Mapping[str, Any]] | None = None,
         earlier_record: RunRecord | None = None,
         seed: int | None = None,
+        project: Config | Mapping[str, Any] | None = None,
+        environment: Environment | Mapping[str, Any] | None = None,
     ) -> Run:
         """Run the steps from `start` to `stop`. Prints nothing and writes no files.
 
@@ -253,6 +259,9 @@ class Pipeline:
         needs the earlier steps' results in `earlier` (with their datasets),
         and their configurations in `earlier_configs`. `seed` is passed to
         every step's adapter for the step's random draws (``project.yaml: seed``).
+        `project` is the project configuration a step's `StepInputs.record()`
+        carries; `environment` the environment it records (default: the
+        running one; a replay passes the recorded one).
         """
         configs = dict(configs or {})
         unknown = sorted(set(configs) - set(self._steps))
@@ -273,6 +282,8 @@ class Pipeline:
                 change=f"Run the pipeline from its first step, or run {missing[0]} first.",
             )
         root = Path(root) if root is not None else None
+        if environment is not None and not isinstance(environment, Environment):
+            environment = Environment.model_validate(environment)
         started = _now()
         inputs: list[InputRecord] = []
         vintage = self._previous(previous, root, inputs)
@@ -286,6 +297,7 @@ class Pipeline:
         stopped = None
         for name in chosen:
             cfg = self.config(name, configs.get(name))
+
             ctx = StepInputs(
                 step=name,
                 results=dict(results),
@@ -294,6 +306,22 @@ class Pipeline:
                 data=data,
                 previous=vintage,
                 seed=seed,
+                recorder=functools.partial(
+                    Run,
+                    pipeline=self._steps,
+                    steps=tuple(done),
+                    results=dict(results),
+                    configs=dict(cfgs),
+                    started=started,
+                    finished=_now(),
+                    carried=before,
+                    start=start,
+                    stop=stop,
+                    inputs=tuple(inputs),
+                    carried_record=earlier_record,
+                    environment=environment,
+                ),
+                project=project,
             )
             adapter = self._adapters.get(name) if name in self._adapters else default_adapter
             result = adapter(self.step(name), cfg, ctx)
@@ -323,6 +351,7 @@ class Pipeline:
             stopped_at=stopped,
             inputs=tuple(inputs),
             carried_record=earlier_record,
+            environment=environment,
         )
 
     @staticmethod

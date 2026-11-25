@@ -5,8 +5,9 @@ name: CI
 #          coverage on Ubuntu / Python 3.13, latest dependencies. Pull requests.
 #   full:  ruff, pytest on Ubuntu and Windows x Python 3.12-3.14 and macOS x
 #          3.12 and 3.14, lowest direct dependencies, core only (no extras),
-#          and sdist + wheel with twine check, then `dazflow run` from the
-#          installed wheel on examples/loss-rate. Pushes to main, manual runs,
+#          and sdist + wheel with twine check, then `dazflow run`, `dazflow
+#          report` and `dazflow replay` from the installed wheel on
+#          examples/loss-rate. Pushes to main, manual runs,
 #          and pull requests labelled `full-ci`.
 # A pull request that changes only Markdown or .agents/ skips every job after
 # `changes`. The filter is a job, not `paths-ignore`, so the checks still report
@@ -96,8 +97,10 @@ jobs:
         with:
           python-version: "3.13"
       # pytest-randomly shuffles the tests and prints the seed in the header;
-      # rerun a failure in the same order with `--randomly-seed=<seed>`.
-      - run: uv run --frozen --all-extras pytest --cov=dazflow --cov-report=term-missing
+      # rerun a failure in the same order with `--randomly-seed=<seed>`. The tests
+      # run in parallel (pytest-xdist) to stay inside the five-minute budget; the
+      # seed reaches every worker.
+      - run: uv run --frozen --all-extras pytest -n auto --cov=dazflow --cov-report=term-missing
 
   test:
     needs: changes
@@ -176,9 +179,10 @@ jobs:
             exit 1
           fi
       # The built wheel, installed alone in a clean environment, runs the example
-      # project end to end. Any non-zero exit (an error, or 2 for a failed gate)
+      # project end to end, writes its document, and replays the record. Any
+      # non-zero exit (an error, 2 for a failed gate or a replay that differs)
       # fails the job, and the record must say the run passed.
-      - name: dazflow run from the installed wheel on the example project
+      - name: dazflow run, report and replay from the installed wheel on the example project
         shell: bash
         run: |
           set -euo pipefail
@@ -194,5 +198,10 @@ jobs:
           import json, sys
           record = json.load(open("reports/record.json"))
           print(record["run"]["status"], record["run"]["steps"])
-          sys.exit(record["run"]["status"] != "passed" or record["run"]["steps"] != ["ingest", "clean", "explore", "build", "select", "forecast", "diagnose"])
+          sys.exit(record["run"]["status"] != "passed" or record["run"]["steps"] != ["ingest", "clean", "explore", "build", "select", "forecast", "diagnose", "report"])
           PY
+          test -s reports/document/document.docx
+          "$dazflow" report
+          test -s reports/document/document.docx
+          "$dazflow" replay
+          "$RUNNER_TEMP/wheel-env/bin/python" reports/document/replay.py

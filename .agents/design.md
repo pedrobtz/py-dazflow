@@ -1012,6 +1012,40 @@ document, configuration appendix, environment table, input table.
 **Packages:** python-docx, jinja2; optional Quarto (an external binary,
 not a Python package) for HTML and PDF.
 
+Settled 2026-11-26 (Stage 11, D43, D44):
+
+- **The step.** `dz.report.run(record, config=None)` takes a run record
+  (`RunRecord` or its dictionary) and nothing else, and imports no other
+  step: it reads each step's configuration, result, artefacts and gate
+  from the record, and the inputs and environment. In the pipeline its
+  adapter passes `StepInputs.record()`, the record of the steps before it as
+  it would be written then. Configuration (`config/report.yaml`): `title`
+  (default the project name), `file` (`document.docx`), `replay` (`rtol`,
+  `atol`, D43) and `overrides`.
+- **The document** is a `dazflow.render.Document`: the title, then
+  `Contents` (a numbered list of the sections after it), `Summary` (the
+  project's description, the finding `S10.1`, the run summary `T10.1` and
+  the report's gate `T10.5`), one section per documented step in pipeline
+  order, titled by its §7 heading (a plugin step by its name), holding
+  `Finding S<n>.<k>.` and the finding, then the step's tables and figures in
+  identifier order, and two appendices: `Appendix A. Configuration`
+  (`T10.4`: every setting of every step as run, one row per leaf setting,
+  values other than text as JSON) and `Appendix B. Environment and inputs`
+  (`T10.2` environment, `T10.3` inputs with their fingerprints).
+  `Project.write` writes it as `reports/document/<file>` and the replay
+  script as `reports/document/replay.py`, replacing the folder; every table
+  and figure gets the final record's source note (run id, the dataset of
+  the step it belongs to, the run's date). The document and the script
+  are excluded from the result's `to_dict()`, as a dataset is (D26): the
+  record they are built from holds all of it.
+- **The gate** of the step is `complete` (every pipeline step before report
+  is in the record) and `gates` (every documented step's gate passed). The
+  replay is `dazflow replay`'s exit status, not a check of the step (D44).
+- **The replay script** is plain Python that loads the project from its
+  own location (`reports/document/` two levels down), calls
+  `Project.replay` with the configured tolerance, prints every difference
+  and exits 0 on a match and 2 otherwise.
+
 ## 8 Configuration
 
 - One pydantic model per step and per component. YAML on disk, Python
@@ -1142,6 +1176,12 @@ Settled 2026-11-25 (Stage 6, D35):
 - `run --from S` (and a step command, which is `--from S --to S`) carries
   the steps before `S` from the last record, reading their datasets and
   checking them against the recorded fingerprints.
+- Amended 2026-11-26 (Stage 11): a series' `source` in the dataset is the
+  input path as written, not the resolved one (`ingest.run(config, data,
+  root=)` reads relative paths from `root`). Until then the dataset's
+  fingerprint, and every later step's, depended on where the folder was
+  relative to the working directory, so a replay of a copied folder
+  failed on fingerprints alone.
 
 ### 10.1 Run record
 
@@ -1176,6 +1216,24 @@ version. Each step's artefacts are written to `reports/<step>/` (tables as
 `.md` and `.html`, figures as `.svg`, findings as `.md`, and
 `result.json`), the folder replaced on each run of the step, with the run
 id and the dataset fingerprint in every source note.
+
+Replay, settled 2026-11-26 (Stage 11, D43): `dz.pipeline.replay(record,
+*, root, data, previous, rtol, atol)` reruns every step in the record from
+its recorded configuration (`config`, every default filled in, so library
+defaults do not matter), its seed and the inputs read from `root`, and
+compares with `compare_records`: every input's fingerprint
+(`inputs.<step>.<name>`), the steps run and the status, every dataset
+fingerprint, and every step's result in full, by path
+(`results.select.ranking[0].mase`), each difference with both values. The
+recorded environment is passed to the rerun, so the report's environment
+table repeats on another machine; an environment that differs is listed
+as notes, not differences. `Project.replay()` adds the configuration
+check: `project.yaml` and `config/<step>.yaml` as they are now, defaults
+filled in, must equal the recorded ones, so an edited setting, or a
+library default that a file leaves unset and that has changed, is a
+difference too (`config.diagnose.anomalies.level`). Replay writes
+nothing. A run that read frames in memory replays only with the same
+frames passed again.
 
 ### 10.2 Versions
 
@@ -1216,6 +1274,13 @@ what it read. Each step registered in `dazflow.steps.registry`, a plugin's
 included, gets a command of its name, except the reserved names `init`,
 `validate`, `run`, `show`, `plugins`, `replay` and `model`. Errors go to
 standard error. `replay` and `model` come in Stages 11 and after 0.1.0.
+
+As built 2026-11-26 (Stage 11): `dazflow replay [-p DIR] [--rtol X]
+[--atol Y] [--json]` replays the last record (no version argument until
+versions exist, after 0.1.0); it prints each difference (the first 50
+without `--json`) and a summary line, and exits 0 on a match, 2 on a
+difference and 1 on an error (no record, an unreadable one). `dazflow
+report` is the report step's command and `dazflow run` now ends with it.
 
 ## 12 Packages
 
@@ -1378,7 +1443,9 @@ Each statistical result needs an oracle, not just a passing run.
   take) (2026-11-25). Stage 10 adds `DiagnoseError` (the chosen model
   cannot be diagnosed as configured: no chosen model, another dataset or
   forecast, a back-test the sample cannot hold, a base scenario or horizon
-  the scenarios do not have) (2026-11-25).
+  the scenarios do not have) (2026-11-25). Stage 11 adds `ReportError` (a
+  report cannot be built as configured, such as from something that is not
+  a run record) (2026-11-26).
 - **D18.** Registry: `Registry(kind, protocol=None)`, `@registry.register(key)`
   and `registry.add(key, obj)`; keys are non-empty strings registered once
   (`DuplicateKeyError`); a component lacking a protocol member is refused;
@@ -1426,6 +1493,11 @@ Each statistical result needs an oracle, not just a passing run.
   `dz.readers.ScenarioInput`, and `dz.ForecastError` (2026-11-25). Stage 10
   adds `dz.diagnose` (the step module, with `chow`, `anomalies`,
   `residual_tests` and `default_lags`) and `dz.DiagnoseError` (2026-11-25).
+  Stage 11 adds `dz.report` (the step module, with `TITLES` and
+  `replay_script`), in `dz.pipeline` `replay`, `compare`, `compare_records`,
+  `Replay`, `Difference`, `RTOL`, `ATOL`, `StepInputs.record()` and
+  `Pipeline.run(project=, environment=)`, `Project.replay()`,
+  `ingest.run(..., root=)` and `dz.ReportError` (2026-11-26).
 - **D21.** Artefact identifiers: `T`, `F` and `S` (findings) with the §7
   step number and a number declared per artefact in `ArtefactIds`;
   `StepResult.artefacts` is sorted by identifier (2026-11-25, Stage 2:
@@ -1669,6 +1741,38 @@ Each statistical result needs an oracle, not just a passing run.
   different units comparable, and a unit shock, the coefficient, is one
   setting away; at 99% a well-specified model flags about one observation
   in a hundred, well under the 5% maximum).
+
+- **D43.** Replay compares floats within a relative tolerance of 1e-9 with
+  an absolute floor of 1e-12 (`math.isclose`), and everything else exactly:
+  integers, choices, identifiers, statuses, text and fingerprints; both
+  are `config/report.yaml: replay` settings, so the tolerance is recorded
+  and the replay script carries it (2026-11-26, Stage 11: measured on the
+  example, a rerun on the same machine moves 126 of its about 5,900 recorded
+  floats, the largest by 2.6e-14 relative (an explore p-value; select's and
+  diagnose's numbers move by about 1e-15, Stages 8 and 10), and a refit of an
+  optimised form agrees to 1e-10 on parameters of order 0.1 or more (D36),
+  so 1e-9 sits more than four orders above the noise. Changing one input
+  value by its last printed digit (2.009 to 2.010) moves 5,460 floats by more
+  than 1e-9, with a median of 2e-4, and changes every dataset fingerprint,
+  which is compared exactly; the rest are floats the change does not reach. The
+  floor is for values that are zero up to rounding, a residual mean or a
+  sum of signed errors, whose relative difference means nothing; it takes
+  over below |x| = 1e-3. Stage 7 asked for a cross-machine tolerance for
+  ARIMAX and ETS set from their standard errors; it is not set here,
+  because no CI leg replays a record written on another machine, and a
+  number chosen without one would be untested. A cross-machine replay of
+  an optimised form passes `--rtol` explicitly; the full CI stage (14)
+  measures it.)
+- **D44.** The report step is built from the run record alone and keeps
+  the replay out of its own gate: its checks are `complete` and `gates`,
+  and the replay that §7.10 names as the gate is `dazflow replay`, exit 0
+  or 2, which the full profile's `package` job runs on the installed wheel
+  (2026-11-26, Stage 11: steps sit below the pipeline and import no other
+  step, so the step cannot rerun the pipeline; doing it in the adapter
+  would double every run, and a record holding a report whose gate is its
+  own replay would replay itself recursively. The document and replay
+  script are pure functions of the record, so a replay reruns the report
+  from the replayed record and compares it like any other step.)
 
 ## 15 Build order
 

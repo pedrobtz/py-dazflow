@@ -37,7 +37,7 @@ def record(ran_example):
     return json.loads((ran_example / "reports" / "record.json").read_text(encoding="utf-8"))
 
 
-STEPS = ["ingest", "clean", "explore", "build", "select", "forecast", "diagnose"]
+STEPS = ["ingest", "clean", "explore", "build", "select", "forecast", "diagnose", "report"]
 # What the example sets beyond the defaults: ingest's series and inputs, select's scenarios.
 SET = {"select": {"scenarios", "bounds"}}
 
@@ -98,7 +98,7 @@ def test_results_rebuild_as_their_step_types(ran_example, record):
         assert getattr(result, "dataset", None) is None  # build and select hold none
         assert result.to_dict() == record["results"][step]
     with pytest.raises(dz.RecordError, match="no result"):
-        loaded.result("report")
+        loaded.result("adjust")
 
 
 def test_checks_and_overrides_are_listed_by_step(record):

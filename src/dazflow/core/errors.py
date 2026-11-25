@@ -36,6 +36,7 @@ __all__ = [
     "RecordError",
     "RegistryError",
     "RenderError",
+    "ReportError",
     "ResultError",
     "SelectError",
     "TransformError",
@@ -163,6 +164,10 @@ class ForecastError(DazflowError):
 
 class DiagnoseError(DazflowError):
     """The chosen model cannot be diagnosed as configured (no model, a back-test, a break)."""
+
+
+class ReportError(DazflowError):
+    """A report cannot be built as configured, such as from something that is not a run record."""
 
 
 class PipelineError(DazflowError):

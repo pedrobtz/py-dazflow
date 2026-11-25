@@ -65,7 +65,16 @@ def test_a_pipeline_run_writes_nothing(frozen):
 def test_a_project_run_writes_nothing(frozen):
     before = tree(frozen)
     run = dz.project.load(frozen).run()
-    assert run.steps == ("ingest", "clean", "explore", "build", "select", "forecast", "diagnose")
+    assert run.steps == (
+        "ingest",
+        "clean",
+        "explore",
+        "build",
+        "select",
+        "forecast",
+        "diagnose",
+        "report",
+    )
     assert tree(frozen) == before
 
 
