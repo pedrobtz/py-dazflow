@@ -773,7 +773,7 @@ requires-dist = [
     { name = "pyfixest", marker = "extra == 'panel'", specifier = ">=0.30" },
     { name = "python-docx", specifier = ">=1.1.2" },
     { name = "pyyaml", specifier = ">=6.0.1" },
-    { name = "rich", specifier = ">=13.7" },
+    { name = "rich", specifier = ">=13.8" },
     { name = "ruptures", marker = "python_full_version < '3.14' and extra == 'breaks'", specifier = ">=1.1.10" },
     { name = "salib", marker = "extra == 'sensitivity'", specifier = ">=1.5" },
     { name = "scikit-learn", marker = "extra == 'credit'", specifier = ">=1.5" },
@@ -782,7 +782,7 @@ requires-dist = [
     { name = "sdmx1", marker = "extra == 'fetch'", specifier = ">=2.16" },
     { name = "sqlalchemy", marker = "extra == 'io'", specifier = ">=2.0.30" },
     { name = "statsmodels", specifier = ">=0.14.2" },
-    { name = "typer", specifier = ">=0.12.3" },
+    { name = "typer", specifier = ">=0.26.0" },
     { name = "xarray", marker = "extra == 'cube'", specifier = ">=2024.6" },
     { name = "xlsxwriter", marker = "extra == 'excel'", specifier = ">=3.2" },
 ]
@@ -3279,8 +3279,8 @@ name = "ruptures"
 version = "1.1.10"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "numpy" },
-    { name = "scipy" },
+    { name = "numpy", marker = "python_full_version < '3.14'" },
+    { name = "scipy", marker = "python_full_version < '3.14'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/64/32/3bcf5a62479b4d83187f872fc68b918b59285f560bee4f37c5d49b1d957a/ruptures-1.1.10.tar.gz", hash = "sha256:76b998f10709045e91a5f44173dc574bf98a106fd3bf22ec3c63b298a02df031", size = 320689, upload-time = "2025-09-10T09:48:02.917Z" }
 wheels = [

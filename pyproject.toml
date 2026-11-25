@@ -23,8 +23,8 @@ dependencies = [
     "python-docx>=1.1.2",
     "matplotlib>=3.8.4",
     "jinja2>=3.1.4",
-    "typer>=0.12.3",
-    "rich>=13.7",
+    "typer>=0.26.0",
+    "rich>=13.8",
 ]
 keywords = ["time series", "forecasting", "econometrics", "model documentation", "stress testing"]
 classifiers = [
@@ -41,6 +41,9 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Mathematics",
     "Topic :: Office/Business :: Financial",
 ]
+
+[project.scripts]
+dazflow = "dazflow.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/pedrobtz/py-dazflow"
