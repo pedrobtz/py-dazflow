@@ -36,9 +36,12 @@ def test_init_creates_the_design_layout(tmp_path):
     ):
         assert (root / folder).is_dir(), folder
     assert sorted(tree(root)) == [
+        "config/build.yaml",
         "config/clean.yaml",
         "config/explore.yaml",
         "config/ingest.yaml",
+        "config/select.yaml",
+        "data/raw/scenarios.csv",
         "data/raw/series.csv",
         "project.yaml",
     ]
@@ -47,7 +50,7 @@ def test_init_creates_the_design_layout(tmp_path):
 def test_init_writes_every_default_with_comments(tmp_path):
     root = tmp_path / "model"
     runner.invoke(app, ["init", str(root)])
-    for step in ("clean", "explore"):
+    for step in ("clean", "explore", "build"):
         text = (root / "config" / f"{step}.yaml").read_text()
         assert yaml.safe_load(text) == registry.get(step).Config().model_dump(mode="json")
         assert text.startswith(f"# {step}:")

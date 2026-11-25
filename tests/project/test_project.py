@@ -85,12 +85,20 @@ def test_a_missing_schema_file_is_refused(tmp_path):
         read_dataset(path)
 
 
-@pytest.mark.parametrize("step", ["ingest", "clean", "explore"])
+@pytest.mark.parametrize("step", ["ingest", "clean", "explore", "build", "select"])
 def test_commented_yaml_reads_back_as_the_configuration(step):
     cls = registry.get(step).Config
+    examples = {
+        "ingest": dz.project._folder._example_ingest,
+        "select": dz.project._folder._example_select,
+    }
     cfg = (
-        dz.project._folder._example_ingest()
-        if step == "ingest"
+        examples[step]()
+        if step in examples
+        else cls.model_validate(
+            {"exclusions": [["a", "b"]], "forms": ["ols", {"form": "glm", "config": {}}]}
+        )
+        if step == "build"
         else cls.model_validate(
             {
                 "treatments": [
@@ -129,7 +137,8 @@ def test_a_step_command_carries_the_earlier_results_from_the_record(example):
         assert second["results"][step] == first["results"][step]
         assert second["config"][step] == first["config"][step]
         assert second["datasets"][step] == first["datasets"][step]
-    assert second["inputs"] == first["inputs"]
+    # The carried steps' inputs; select's scenarios file belongs to a step not run now.
+    assert second["inputs"] == [i for i in first["inputs"] if i["step"] in ("ingest", "clean")]
     assert (
         second["results"]["explore"]["input_fingerprint"]
         == first["datasets"]["clean"]["fingerprint"]
@@ -182,8 +191,10 @@ def test_validate_refuses_a_config_file_for_no_step(example):
 
 def test_validate_refuses_an_unknown_step_in_the_pipeline(example):
     path = example / "project.yaml"
-    path.write_text(path.read_text().replace("[ingest, clean, explore]", "[ingest, build]"))
-    with pytest.raises(dz.PipelineError, match="build"):
+    path.write_text(
+        path.read_text().replace("[ingest, clean, explore, build, select]", "[ingest, forecast]")
+    )
+    with pytest.raises(dz.PipelineError, match="forecast"):
         dz.project.load(example).validate()
 
 
@@ -239,3 +250,17 @@ def test_init_json_lists_the_files(tmp_path):
             if p.is_file()
         ),
     }
+
+
+def test_validate_reads_the_scenarios_file(example):
+    (example / "data" / "raw" / "scenarios.csv").unlink()
+    with pytest.raises(dz.SelectError, match=r"scenarios\.csv"):
+        dz.project.load(example).validate()
+
+
+def test_the_project_seed_reaches_select(example):
+    path = example / "project.yaml"
+    path.write_text(path.read_text().replace("seed: 0", "seed: 17"))
+    run = dz.project.load(example).run()
+    assert run.results["select"].seed == 17
+    assert run.results["select"].confidence.seed == 17

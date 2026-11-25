@@ -13,7 +13,7 @@ from typer.testing import CliRunner
 
 import dazflow as dz
 from dazflow.cli import app
-from dazflow.steps import clean, explore, ingest
+from dazflow.steps import build, clean, explore, ingest, select
 
 runner = CliRunner()
 
@@ -41,7 +41,7 @@ def close(a, b, path="$"):
 
 
 def library(root):
-    """The three steps called directly, the input path resolved by hand."""
+    """The steps called directly, the input paths resolved by hand."""
     proj = dz.project.load(root)
     cfg = proj.step_config("ingest")
     inputs = [i.model_copy(update={"path": str(root / i.path)}) for i in cfg.inputs]
@@ -49,6 +49,16 @@ def library(root):
     cl = clean.run(ing.dataset, proj.step_config("clean"))
     ex = explore.run(cl.dataset, proj.step_config("explore"))
     return cfg, ing, cl, ex
+
+
+def library_select(root, cl, ex):
+    """build and select called directly, the scenarios path resolved by hand."""
+    proj = dz.project.load(root)
+    b = build.run(cl.dataset, proj.step_config("build"), explore=ex)
+    cfg = proj.step_config("select")
+    spec = cfg.scenarios.model_copy(update={"path": str(root / cfg.scenarios.path)})
+    sel = select.run(cl.dataset, cfg.model_copy(update={"scenarios": spec}), build=b, seed=0)
+    return b, sel.model_copy(update={"config": cfg})
 
 
 def test_step_commands_print_the_libraries_results(example):
@@ -63,6 +73,9 @@ def test_step_commands_print_the_libraries_results(example):
 
     assert invoke("clean", "-p", example, "--json") == cl.to_dict()
     close(invoke("explore", "-p", example, "--json"), ex.to_dict())
+    b, sel = library_select(example, cl, ex)
+    close(invoke("build", "-p", example, "--json"), b.to_dict())
+    close(invoke("select", "-p", example, "--json"), sel.to_dict())
 
 
 def test_run_json_is_the_record_it_wrote(example):
@@ -75,7 +88,7 @@ def test_run_json_is_the_record_it_wrote(example):
 
 def test_the_record_holds_the_same_results_as_the_step_folders(ran_example):
     record = json.loads((ran_example / "reports" / "record.json").read_text())
-    for step in ("ingest", "clean", "explore"):
+    for step in ("ingest", "clean", "explore", "build", "select"):
         folder = json.loads((ran_example / "reports" / step / "result.json").read_text())
         assert folder == record["results"][step]
 
@@ -121,6 +134,9 @@ def test_validate_json(example):
     assert got == {
         "valid": True,
         "project": "loss-rate",
-        "steps": ["ingest", "clean", "explore"],
-        "inputs": [{"name": "macro", "path": "data/raw/series.csv"}],
+        "steps": ["ingest", "clean", "explore", "build", "select"],
+        "inputs": [
+            {"name": "macro", "path": "data/raw/series.csv"},
+            {"name": "scenarios", "path": "data/raw/scenarios.csv"},
+        ],
     }

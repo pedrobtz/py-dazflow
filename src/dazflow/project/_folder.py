@@ -159,6 +159,12 @@ class Project:
                 )
             readers.read(inp.model_copy(update={"path": str(self.root / inp.path)}))
             inputs.append({"name": inp.name, "path": inp.path})
+        spec = getattr(configs.get("select"), "scenarios", None)
+        if spec is not None:
+            from dazflow.steps import select
+
+            select.read_scenarios(spec, self.root)
+            inputs.append({"name": "scenarios", "path": spec.path})
         if self.config.previous is not None:
             spec = self.config.previous
             readers.read(spec.model_copy(update={"path": str(self.root / (spec.path or ""))}))
@@ -222,6 +228,7 @@ class Project:
             earlier=earlier,
             earlier_configs=earlier_configs,
             earlier_record=record,
+            seed=self.config.seed,
         )
 
     # --- write -----------------------------------------------------------------
@@ -290,6 +297,12 @@ _HEADER = {
     "Paths are relative to the project folder.",
     "clean": "clean: data-quality checks and treatments (design §7.2). Every treatment needs a reason.",
     "explore": "explore: profiles, unit-root tests, lag search and the driver screen (design §7.3).",
+    "build": "build: driver combinations and forms, simplest first, within the declared signs\n"
+    "(design §7.4). A candidate's check is overridden as '<candidate>/<check>'.",
+    "select": "select: rolling-origin scores, the model confidence set, scenarios and the default\n"
+    "rule (design §7.6). Confirm or override the proposal in choice, with a reason.\n"
+    "data/raw/scenarios.csv holds illustrative driver paths written for the example data,\n"
+    "not a published scenario.",
 }
 
 
@@ -324,6 +337,24 @@ def _example_ingest() -> Config:
     )
 
 
+def _example_select() -> Config:
+    from dazflow.steps import select
+
+    return select.Config.model_validate(
+        {
+            "scenarios": {
+                "path": "data/raw/scenarios.csv",
+                "severity": ["baseline", "adverse", "severe"],
+            },
+            "bounds": [0.0, 100.0],
+        }
+    )
+
+
+_EXAMPLES = {"ingest": _example_ingest, "select": _example_select}
+_EXAMPLE_DATA = ("series.csv", "scenarios.csv")
+
+
 def init(root: str | Path, name: str | None = None) -> Project:
     """Create a project in `root` (new or empty) with commented defaults and example data.
 
@@ -345,10 +376,11 @@ def init(root: str | Path, name: str | None = None) -> Project:
         commented_yaml(config, _HEADER["project"]), encoding="utf-8", newline="\n"
     )
     for step in config.pipeline:
-        cfg = _example_ingest() if step == "ingest" else registry.get(step).Config()
+        cfg = _EXAMPLES[step]() if step in _EXAMPLES else registry.get(step).Config()
         (root / "config" / f"{step}.yaml").write_text(
             commented_yaml(cfg, _HEADER.get(step)), encoding="utf-8", newline="\n"
         )
-    sample = resources.files("dazflow.project").joinpath("example", "series.csv")
-    (root / "data" / "raw" / "series.csv").write_bytes(sample.read_bytes())
+    for file in _EXAMPLE_DATA:
+        sample = resources.files("dazflow.project").joinpath("example", file)
+        (root / "data" / "raw" / file).write_bytes(sample.read_bytes())
     return Project(root, config)

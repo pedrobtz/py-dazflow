@@ -68,8 +68,9 @@ class StepInputs:
     or carried from an earlier run's record); `dataset` is the dataset of
     the latest of them that holds one. `root` is the project folder that
     relative paths are read from (``None``: as given). `data` holds frames
-    passed in memory, by input name; `previous` the previous data vintage.
-    An adapter appends what it read to `inputs`.
+    passed in memory, by input name; `previous` the previous data vintage;
+    `seed` the project's seed (``project.yaml: seed``) for a step's random
+    draws. An adapter appends what it read to `inputs`.
     """
 
     step: str
@@ -78,6 +79,7 @@ class StepInputs:
     root: Path | None = None
     data: Mapping[str, Any] | None = None
     previous: Dataset | None = None
+    seed: int | None = None
     inputs: list[InputRecord] = field(default_factory=list)
 
     def resolve(self, path: str | Path) -> Path:
@@ -95,6 +97,29 @@ class StepInputs:
                 change="Place a step that returns a dataset, such as ingest, before it.",
             )
         return self.dataset
+
+    def dataset_with(self, fingerprint: str | None) -> Dataset:
+        """The dataset of an earlier result with this fingerprint (the data a step ran on)."""
+        for result in self.results.values():
+            ds = getattr(result, "dataset", None)
+            if isinstance(ds, Dataset) and getattr(result, "fingerprint", None) == fingerprint:
+                return ds
+        raise PipelineError(
+            f"the step {self.step!r} needs a dataset no earlier step holds",
+            observed=f"fingerprint {str(fingerprint)[:12]}...; earlier steps: "
+            f"{', '.join(self.results) or 'none'}",
+            change="Run the pipeline from the step that returned it (dazflow run).",
+        )
+
+    def require(self, name: str) -> StepResult:
+        """The earlier result of the step `name`, or `PipelineError` saying it must come first."""
+        if name not in self.results:
+            raise PipelineError(
+                f"the step {self.step!r} needs the result of {name!r}",
+                observed=f"earlier steps: {', '.join(self.results) or 'none'}",
+                change=f"Place {name} before {self.step} in the pipeline.",
+            )
+        return self.results[name]
 
 
 Adapter = Callable[[Any, Config, StepInputs], StepResult]
@@ -152,3 +177,38 @@ def _ingest(step: Any, config: Config, inputs: StepInputs) -> StepResult:
 @register_adapter("clean")
 def _clean(step: Any, config: Config, inputs: StepInputs) -> StepResult:
     return step.run(inputs.require_dataset(), config, previous=inputs.previous)
+
+
+@register_adapter("build")
+def _build(step: Any, config: Config, inputs: StepInputs) -> StepResult:
+    # Build takes the series in levels, as explore received them, and explore's result.
+    explore = inputs.results.get("explore")
+    if explore is None:
+        return step.run(inputs.require_dataset(), config)
+    return step.run(inputs.dataset_with(explore.input_fingerprint), config, explore=explore)
+
+
+@register_adapter("select")
+def _select(step: Any, config: Config, inputs: StepInputs) -> StepResult:
+    # Select takes the levels build ran on and build's result; a scenarios file is read
+    # from the project folder, recorded by its hash, and kept in the result as written.
+    build = inputs.require("build")
+    levels = inputs.dataset_with(build.fingerprint)
+    spec = getattr(config, "scenarios", None)
+    if spec is None or levels.scenarios is not None:
+        return step.run(levels, config, build=build, seed=inputs.seed)
+    path = inputs.resolve(spec.path)
+    run_config = config.model_copy(
+        update={"scenarios": spec.model_copy(update={"path": str(path)})}
+    )
+    result = step.run(levels, run_config, build=build, seed=inputs.seed)
+    inputs.inputs.append(
+        InputRecord(
+            step=inputs.step,
+            name="scenarios",
+            path=spec.path,
+            kind="file-sha256",
+            fingerprint=file_sha256(path),
+        )
+    )
+    return result.model_copy(update={"config": config})

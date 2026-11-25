@@ -37,7 +37,12 @@ def record(ran_example):
     return json.loads((ran_example / "reports" / "record.json").read_text())
 
 
-@pytest.mark.parametrize("step", ["ingest", "clean", "explore"])
+STEPS = ["ingest", "clean", "explore", "build", "select"]
+# What the example sets beyond the defaults: ingest's series and inputs, select's scenarios.
+SET = {"select": {"scenarios", "bounds"}}
+
+
+@pytest.mark.parametrize("step", STEPS)
 def test_recorded_configuration_validates_against_the_step_schema(record, step):
     cls = registry.get(step).Config
     schema = cls.json_schema()
@@ -46,7 +51,7 @@ def test_recorded_configuration_validates_against_the_step_schema(record, step):
     assert cls.model_validate(config).model_dump(mode="json") == config
 
 
-@pytest.mark.parametrize("step", ["ingest", "clean", "explore"])
+@pytest.mark.parametrize("step", STEPS)
 def test_recorded_configuration_holds_every_default(record, step):
     schema = registry.get(step).Config.json_schema()
     config = record["config"][step]
@@ -57,7 +62,7 @@ def test_recorded_configuration_holds_every_default(record, step):
             node = node[key]
         assert path[-1] in node, ".".join(path)
         # The example sets only ingest's series and inputs; everything else is a default.
-        if "default" in prop and step != "ingest":
+        if "default" in prop and step != "ingest" and path[0] not in SET.get(step, ()):
             assert node[path[-1]] == prop["default"], ".".join(path)
             seen += 1
     assert seen or step == "ingest"
@@ -87,20 +92,18 @@ def test_a_record_of_another_schema_version_is_refused(record):
 
 def test_results_rebuild_as_their_step_types(ran_example, record):
     loaded = RunRecord.load(ran_example / "reports" / "record.json")
-    for step in ("ingest", "clean", "explore"):
+    for step in STEPS:
         result = loaded.result(step)
         assert isinstance(result, registry.get(step).Result)
-        assert result.dataset is None
+        assert getattr(result, "dataset", None) is None  # build and select hold none
         assert result.to_dict() == record["results"][step]
     with pytest.raises(dz.RecordError, match="no result"):
-        loaded.result("build")
+        loaded.result("forecast")
 
 
 def test_checks_and_overrides_are_listed_by_step(record):
     want = [
-        {"step": step, **c}
-        for step in ("ingest", "clean", "explore")
-        for c in record["results"][step]["gate"]["checks"]
+        {"step": step, **c} for step in STEPS for c in record["results"][step]["gate"]["checks"]
     ]
     assert list(record["checks"]) == want
     assert record["overrides"] == []
@@ -130,6 +133,7 @@ def test_the_environment_is_this_one(record):
 
 def test_every_input_has_its_fingerprint(ran_example, record):
     data = (ran_example / "data" / "raw" / "series.csv").read_bytes()
+    scenarios = (ran_example / "data" / "raw" / "scenarios.csv").read_bytes()
     assert record["inputs"] == [
         {
             "step": "ingest",
@@ -137,7 +141,14 @@ def test_every_input_has_its_fingerprint(ran_example, record):
             "path": "data/raw/series.csv",
             "kind": "file-sha256",
             "fingerprint": hashlib.sha256(data).hexdigest(),
-        }
+        },
+        {
+            "step": "select",
+            "name": "scenarios",
+            "path": "data/raw/scenarios.csv",
+            "kind": "file-sha256",
+            "fingerprint": hashlib.sha256(scenarios).hexdigest(),
+        },
     ]
 
 
@@ -148,18 +159,23 @@ def test_every_dataset_is_recorded_with_its_path_and_fingerprint(ran_example, re
         assert entry["fingerprint"] == record["results"][step]["fingerprint"]
         ds = dz.project.read_dataset(ran_example / entry["path"])
         assert ds.fingerprint() == entry["fingerprint"]
+    # build and select return no dataset: each records the fingerprint of the one it ran on.
+    for step in ("build", "select"):
+        entry = record["datasets"][step]
+        assert entry["path"] is None
+        assert entry["fingerprint"] == record["datasets"]["clean"]["fingerprint"]
 
 
 def test_the_run_section(ran_example, record):
     run = record["run"]
-    assert run["steps"] == ["ingest", "clean", "explore"]
+    assert run["steps"] == STEPS
     assert run["carried"] == []
     assert run["status"] == "passed"
     assert run["stopped_at"] is None
     assert run["started"] <= run["finished"]
     assert run["id"].startswith(run["finished"].replace("-", "").replace(":", ""))
     assert record["project"] == dz.project.load(ran_example).config.model_dump(mode="json")
-    assert record["pipeline"] == ["ingest", "clean", "explore"]
+    assert record["pipeline"] == STEPS
 
 
 def test_a_missing_or_broken_record_file_is_a_record_error(tmp_path):
