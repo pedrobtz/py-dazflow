@@ -37,7 +37,7 @@ def record(ran_example):
     return json.loads((ran_example / "reports" / "record.json").read_text(encoding="utf-8"))
 
 
-STEPS = ["ingest", "clean", "explore", "build", "select", "forecast"]
+STEPS = ["ingest", "clean", "explore", "build", "select", "forecast", "diagnose"]
 # What the example sets beyond the defaults: ingest's series and inputs, select's scenarios.
 SET = {"select": {"scenarios", "bounds"}}
 
@@ -98,7 +98,7 @@ def test_results_rebuild_as_their_step_types(ran_example, record):
         assert getattr(result, "dataset", None) is None  # build and select hold none
         assert result.to_dict() == record["results"][step]
     with pytest.raises(dz.RecordError, match="no result"):
-        loaded.result("diagnose")
+        loaded.result("report")
 
 
 def test_checks_and_overrides_are_listed_by_step(record):
@@ -106,7 +106,9 @@ def test_checks_and_overrides_are_listed_by_step(record):
         {"step": step, **c} for step in STEPS for c in record["results"][step]["gate"]["checks"]
     ]
     assert list(record["checks"]) == want
-    assert record["overrides"] == []
+    # The example accepts one failed check, with its reason in config/diagnose.yaml.
+    assert [(o["step"], o["check"]) for o in record["overrides"]] == [("diagnose", "reset")]
+    assert record["overrides"][0]["reason"].startswith("Example data")
 
 
 def test_overrides_are_recorded_with_their_reasons(example):
@@ -156,6 +158,13 @@ def test_every_input_has_its_fingerprint(ran_example, record):
             "kind": "file-sha256",
             "fingerprint": hashlib.sha256(scenarios).hexdigest(),
         },
+        {
+            "step": "diagnose",
+            "name": "scenarios",
+            "path": "data/raw/scenarios.csv",
+            "kind": "file-sha256",
+            "fingerprint": hashlib.sha256(scenarios).hexdigest(),
+        },
     ]
 
 
@@ -166,8 +175,8 @@ def test_every_dataset_is_recorded_with_its_path_and_fingerprint(ran_example, re
         assert entry["fingerprint"] == record["results"][step]["fingerprint"]
         ds = dz.project.read_dataset(ran_example / entry["path"])
         assert ds.fingerprint() == entry["fingerprint"]
-    # build, select and forecast return no dataset: each records the one it ran on.
-    for step in ("build", "select", "forecast"):
+    # build, select, forecast and diagnose return no dataset: each records the one it ran on.
+    for step in ("build", "select", "forecast", "diagnose"):
         entry = record["datasets"][step]
         assert entry["path"] is None
         assert entry["fingerprint"] == record["datasets"]["clean"]["fingerprint"]
@@ -205,3 +214,15 @@ def test_forecast_reads_selects_scenarios_from_the_folder_and_records_them(ran_e
     assert [p["scenario"] for p in result["paths"]] == ["baseline", "adverse", "severe"]
     assert record["config"]["forecast"]["bounds"] is None  # select's bounds are used
     assert result["bounds"] == [0.0, 100.0]
+
+
+def test_diagnose_reads_selects_scenarios_and_forecasts_horizon(record):
+    inputs = [i for i in record["inputs"] if i["step"] == "diagnose"]
+    assert [(i["name"], i["path"]) for i in inputs] == [("scenarios", "data/raw/scenarios.csv")]
+    result = record["results"]["diagnose"]
+    assert result["chosen"] == record["results"]["forecast"]["chosen"]
+    assert result["horizon"] == record["results"]["forecast"]["horizon"]
+    assert result["base"] == "baseline"
+    statuses = {c["name"]: c["status"] for c in result["gate"]["checks"]}
+    assert statuses["reset"] == "overridden"
+    assert set(statuses.values()) <= {"pass", "overridden"}

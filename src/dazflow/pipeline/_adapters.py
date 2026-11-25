@@ -239,3 +239,30 @@ def _forecast(step: Any, config: Config, inputs: StepInputs) -> StepResult:
         )
     )
     return result
+
+
+@register_adapter("diagnose")
+def _diagnose(step: Any, config: Config, inputs: StepInputs) -> StepResult:
+    # Diagnose takes the levels select ran on, select's result and, when it ran, forecast's
+    # (for the sensitivity horizon). Scenarios are select's, read and recorded as forecast's.
+    select = inputs.require("select")
+    forecast = inputs.results.get("forecast")
+    levels = inputs.dataset_with(select.fingerprint)
+    spec = getattr(getattr(select, "config", None), "scenarios", None)
+    if spec is None or levels.scenarios is not None:
+        return step.run(levels, config, select=select, forecast=forecast)
+    path = inputs.resolve(spec.path)
+    frame, severity = readers.read_scenarios(spec, inputs.root)
+    result = step.run(
+        levels.with_scenarios(frame, severity), config, select=select, forecast=forecast
+    )
+    inputs.inputs.append(
+        InputRecord(
+            step=inputs.step,
+            name="scenarios",
+            path=spec.path,
+            kind="file-sha256",
+            fingerprint=file_sha256(path),
+        )
+    )
+    return result
