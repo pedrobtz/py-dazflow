@@ -300,7 +300,7 @@ built-in one.
 | Kind | Protocol (essential methods) | Built-ins |
 | --- | --- | --- |
 | Reader | `read(spec) -> Dataset` | csv, excel, parquet; sql later |
-| Check | `evaluate(obj) -> Check` | completeness, gaps, range, sign |
+| Check | `units(x, config, context) -> Units`, evaluated by pointblank into an `Outcome` with its `Check` | completeness, gaps, duplicates, range, revisions, outliers, representativeness |
 | Transform | `resolve`, `forward`, `inverse`, `consumed` | diff, seasonal_diff, log, logdiff, growth, logit, boxcox |
 | Model | `fit(y, X) -> Fitted` | naive, mean, OLS, GLM, ARIMAX, ETS |
 | Metric | `score(actual, forecast)` | MAE, RMSE, MASE, coverage |
@@ -425,6 +425,49 @@ flagged periods.
 critical thresholds (D12); statsmodels `STL` for seasonal decomposition and robust
 outlier detection; scipy `stats` for distribution tests; optional
 ruptures for level shifts.
+
+Settled 2026-11-25 (Stage 4, D29, D30). `dz.clean.run(dataset, config,
+*, previous=None)`; `previous` is the previous vintage, for the
+revisions check. A check (`dz.checks`) names, for one series, its test
+units (periods) and what each must satisfy (not missing, between bounds,
+at most or above a bound); `checks.evaluate` interrogates them with one
+pointblank validation whose `warning`, `error` and `critical` thresholds
+come from the check's configuration (below 1 a share of the units, 1 or
+more a whole count, as in pointblank). The gate check `<key>:<series>`
+fails when the failing units reach `error`; the level reached is
+reported. pointblank's own report is not used: its counts and failing
+rows become dazflow `Check`s, `Outcome`s and `Table`s. With no test unit
+the check passes without pointblank, which 0.13 cannot run on an empty
+table.
+
+- **Checks** (defaults in brackets): `completeness`, every calendar period
+  has a value (error 0.1); `gaps`, no run of missing values inside the
+  history longer than `max_length` (0; error 1); `duplicates`, no value
+  equal to the previous period's (error 0.1) — a `Dataset` has one row
+  per period, so a repeated value is the duplicate left to find;
+  `range`, values within `bounds` per series, inclusive (error 1);
+  `revisions`, `|new - old| / |old|` at most `tolerance` (0.01; error
+  0.1) on periods in both vintages; `outliers`, robust z-score of STL
+  residuals at most `z` (4; error 0.05); `representativeness`, every
+  period of each configured downturn has a value, on targets and drivers
+  (error 1). Each can be disabled or limited to `columns`; plugin checks
+  run from `custom: {key: config}`. Checks run before and after
+  treatment; the gate is built from the second run.
+- **Treatments** run in order: `fill` (previous, next or a value),
+  `interpolate` (linear, inside the history), `winsorise` (clip to the
+  series' `lower` and `upper` quantiles), `replace` (a value, or linear
+  from the neighbours) and `exclude` (values become missing, and no check
+  counts an excluded period; no later treatment fills it). Each names
+  `series` (default every numeric series) and `periods`, or `start` and
+  `end`. A treatment without a reason, or with a blank one, is a
+  `ConfigError`. Each treatment logs one `LogEntry` per series with its
+  reason and the periods it changed, and the treatment table holds every
+  changed value before and after, so the log replays onto the raw frame.
+- **Artefacts:** `T2.1` quality report (one row per check and series,
+  before and after; checks that do not apply are listed in its notes),
+  `T2.2` treatments and exclusions, `T2.3` the gate, `F2.1` the history
+  of the targets after cleaning with the periods flagged before treatment
+  marked (no target, no figure), `S2.1` the summary finding.
 
 ### 7.3 `explore`: each series alone, each driver against the target
 
@@ -840,7 +883,9 @@ Each statistical result needs an oracle, not just a passing run.
   valid) and `RenderError` (an artefact cannot be written in the format
   asked for) (2026-11-25). Stage 3 adds `TransformError` (with `series`
   and `period`), `ReaderError`, its subclass `MissingExtraError` (with
-  `module` and `extra`) and `IngestError` (2026-11-25).
+  `module` and `extra`) and `IngestError` (2026-11-25). Stage 4 adds `CheckError` (a check
+  cannot be evaluated as configured) and `CleanError` (a treatment names
+  what the data lack) (2026-11-25).
 - **D18.** Registry: `Registry(kind, protocol=None)`, `@registry.register(key)`
   and `registry.add(key, obj)`; keys are non-empty strings registered once
   (`DuplicateKeyError`); a component lacking a protocol member is refused;
@@ -865,6 +910,8 @@ Each statistical result needs an oracle, not just a passing run.
   `Config`, `Result`, `run`, `IDS`), `dazflow.steps.registry` (steps by
   name), and the errors `dz.TransformError`, `dz.ReaderError`,
   `dz.MissingExtraError` and `dz.IngestError` (2026-11-25, Stage 3).
+  Stage 4 adds `dz.checks` and `dz.clean`, and `dz.CheckError` and
+  `dz.CleanError` (2026-11-25).
 - **D21.** Artefact identifiers: `T`, `F` and `S` (findings) with the §7
   step number and a number declared per artefact in `ArtefactIds`;
   `StepResult.artefacts` is sorted by identifier (2026-11-25, Stage 2:
@@ -924,6 +971,35 @@ Each statistical result needs an oracle, not just a passing run.
   one figure `F1.1` holding every target (2026-11-25, Stage 3:
   interpolating to a higher frequency is a modelling choice the design
   does not make, and one figure needs no per-series identifier rule).
+- **D29.** Checks run through pointblank as §7.2 describes: a check
+  supplies its test units, pointblank (0.13 and later) counts the failing
+  ones against the configured warning, error and critical thresholds, and
+  dazflow builds the gate check and artefacts from the counts (2026-11-25,
+  Stage 4: D12's engine, with the thresholds in configuration and the
+  artefacts in the house style; every check needed only
+  `col_vals_not_null`, `col_vals_between`, `col_vals_ge`, `col_vals_le`
+  and `col_vals_gt`, so none is a plain function). The outlier scores
+  are robust z-scores (median and 1.4826 MAD) of the residuals of an STL
+  fit (local-constant seasonal smoother of 13 years) of monthly and
+  quarterly data, or a lowess trend (21 years) of annual data. A robust
+  STL fit, scaled by the plain fit's residuals, flags the gross outliers;
+  each flagged period is then replaced by its fitted value and the plain
+  fit repeated until the flagged set is stable, a period staying flagged
+  only if it still scores above `z` when the fit sees its own value
+  (2026-11-25, Stage 4: statsmodels' robust STL alone gives zero weight to
+  up to a quarter of the points of a clean Gaussian series and then
+  scores periods of spike-free series up to z = 15; the plain fit alone
+  lets three spikes of 40 standard deviations in ten years of quarters
+  raise the scale until none is flagged. Measured over 40 seeds with three spikes
+  of 8 standard deviations, the procedure flags exactly the spikes in
+  40/40 series of ten years of months and 37/40 of twenty years of
+  quarters, with at most 2/40 clean series flagged anywhere).
+- **D30.** `clean` takes the previous vintage as `run(dataset, config,
+  *, previous=None)`, applies treatments in configuration order, and
+  `exclude` keeps the calendar whole: excluded values become missing and
+  are not counted by any check, so later steps keep their lags
+  (2026-11-25, Stage 4: dropping rows would break the period index that
+  differences and lags rely on).
 
 ## 15 Build order
 
