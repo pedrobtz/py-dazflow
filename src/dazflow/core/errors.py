@@ -13,6 +13,8 @@ from __future__ import annotations
 
 __all__ = [
     "ArtefactError",
+    "CheckError",
+    "CleanError",
     "ConfigError",
     "DatasetError",
     "DazflowError",
@@ -115,6 +117,14 @@ class MissingExtraError(ReaderError):
 
 class IngestError(DazflowError):
     """The ingest step cannot put its inputs on one calendar as configured."""
+
+
+class CheckError(DazflowError):
+    """A data-quality check cannot be evaluated as configured, such as a downturn that cannot be read."""
+
+
+class CleanError(DazflowError):
+    """The clean step cannot treat the data as configured, such as a treatment naming an unknown period."""
 
 
 class ResultError(DazflowError):

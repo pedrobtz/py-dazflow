@@ -48,6 +48,9 @@ Document).
 2026-11-25, Stage 3: `src/dazflow/transforms/`, `src/dazflow/readers/` and
 `src/dazflow/steps/` with `ingest`.
 
+2026-11-25, Stage 4: `src/dazflow/checks/` (seven checks on pointblank)
+and `steps/clean.py`.
+
 ## Versions and dependents
 
 `v0.1.0` issue: see the roadmap header. Dependents: none.
@@ -110,6 +113,12 @@ To be written as stages land; see `.agents/design.md` §4 for the layers
 - `steps/`: `registry` and one module per step with `Config`, `Result`,
   `run` and its `IDS` (`ArtefactIds`). Steps import components, never
   each other. A result's `dataset` is excluded from `to_dict()` (D26).
+- `checks/`: `_base.py` (`QualityCheck` protocol, `CheckConfig`
+  thresholds, `Context`, `Units`, `Outcome`, `evaluate`, which builds one
+  pointblank validation per check and series), `_builtin.py` (the seven
+  checks and `outlier_scores`). Import pointblank and statsmodels inside
+  functions: `import dazflow` must stay light. A check never changes the
+  data; `steps/clean.py` holds the treatments and their log.
 - Tests that need an extra carry `@pytest.mark.extra("<distribution>")`
   (`tests/conftest.py`), which skips only when the distribution is not
   installed, so a broken import fails instead of skipping.

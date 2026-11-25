@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- `dz.checks`: seven data-quality checks, registered and configured with
+  pointblank's warning, error and critical thresholds: `completeness`,
+  `gaps`, `duplicates` (a value repeating the previous one), `range`,
+  `revisions` (against a previous vintage), `outliers` (robust z-scores
+  of STL residuals; `outlier_scores()`) and `representativeness` (the
+  history covers configured downturns). `evaluate()` runs one check on a
+  series and returns its outcome: the periods tested and flagged, the
+  level reached and the gate check.
+- `dz.clean`: the second step. It runs the checks, applies the configured
+  treatments (`fill`, `interpolate`, `winsorise`, `replace`, `exclude`;
+  each needs a reason), logs every changed value with its reason, runs the
+  checks again and gates on the result. It returns the cleaned dataset
+  with a quality report, a treatment table, a history chart marking the
+  flagged periods and a summary finding. New errors `CheckError` and
+  `CleanError`.
 - `dz.transforms`: `diff`, `seasonal_diff`, `log`, `logdiff`, `growth`,
   `logit` and `boxcox`, each with its inverse, named by a text form such
   as `"diff(lag=4)"`. `forward()` returns the chain with its parameters

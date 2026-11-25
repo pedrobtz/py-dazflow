@@ -54,7 +54,7 @@ checks something the stage introduces and later stages build on.
 | 1 | [Core objects](#stage-1--core-objects) | full | [#3](https://github.com/pedrobtz/py-dazflow/issues/3) | [#21](https://github.com/pedrobtz/py-dazflow/pull/21) | 2026-11-25 |
 | 2 | [Artefacts and rendering](#stage-2--artefacts-and-rendering) | full | [#4](https://github.com/pedrobtz/py-dazflow/issues/4) | [#22](https://github.com/pedrobtz/py-dazflow/pull/22) | 2026-11-25 |
 | 3 | [Transforms, readers and ingest](#stage-3--transforms-readers-and-ingest) | quick | [#5](https://github.com/pedrobtz/py-dazflow/issues/5) | [#23](https://github.com/pedrobtz/py-dazflow/pull/23) | 2026-11-25 |
-| 4 | [Clean](#stage-4--clean) | quick | [#6](https://github.com/pedrobtz/py-dazflow/issues/6) | | |
+| 4 | [Clean](#stage-4--clean) | quick | [#6](https://github.com/pedrobtz/py-dazflow/issues/6) | [#24](https://github.com/pedrobtz/py-dazflow/pull/24) | 2026-11-25 |
 | 5 | [Explore](#stage-5--explore) | quick | [#7](https://github.com/pedrobtz/py-dazflow/issues/7) | | |
 | 6 | [Pipeline, record and command line](#stage-6--pipeline-record-and-command-line) | quick | [#8](https://github.com/pedrobtz/py-dazflow/issues/8) | | |
 | 7 | [Model forms and evaluation](#stage-7--model-forms-and-evaluation) | full | [#9](https://github.com/pedrobtz/py-dazflow/issues/9) | | |
@@ -313,6 +313,17 @@ of what was changed.
 - The quick profile is green on the pull request.
 
 **Design.** [§7.2](design.md#72-clean-data-quality-and-treatment).
+
+**As built** (2026-11-25). Every check runs through pointblank (D29); none
+needed a plain function. `duplicates` checks repeated values, because a
+`Dataset` cannot hold a repeated period. `revisions` needs the previous
+vintage, passed as `clean.run(dataset, config, previous=...)` (D30);
+without it the check is reported as not applying. The outlier scores are
+not plain robust STL: on synthetic series statsmodels' robust weights
+flag clean periods, so a robust first pass is refined by refitting with
+flagged periods replaced (D29). `exclude` keeps the calendar and makes
+values missing (D30). Level shifts (§7.2, optional ruptures) are not
+checked yet.
 
 ## Stage 5 — Explore
 
