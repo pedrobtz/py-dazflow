@@ -45,6 +45,9 @@ Override, Finding, StepResult, Registry, errors) and `dazflow.testing`.
 ArtefactIds) and `src/dazflow/render/` (style, renderers, Section,
 Document).
 
+2026-11-25, Stage 3: `src/dazflow/transforms/`, `src/dazflow/readers/` and
+`src/dazflow/steps/` with `ingest`.
+
 ## Versions and dependents
 
 `v0.1.0` issue: see the roadmap header. Dependents: none.
@@ -96,6 +99,20 @@ To be written as stages land; see `.agents/design.md` §4 for the layers
   inside `matplotlib.style.context`; SVG settings fixed in code),
   `_docx.py` (python-docx), `renderers.py` (the `renderers` registry,
   `render`, `write`). `dz.render` is imported lazily.
+- `transforms/`: `_base.py` (protocol, registry, text form, `forward`,
+  `inverse`, `apply`), `_builtin.py` (the seven transforms). A chain is
+  recorded as resolved text in `SeriesMeta.transforms`; inverting needs
+  that text and the untransformed history (D27).
+- `readers/`: `_base.py` (`ReadSpec`, `read`, `from_frame`, the date to
+  period rules, `require` for optional imports), `_builtin.py` (csv,
+  excel, parquet). Import an extra's package inside `read`, never at
+  module level, or `import dazflow` fails in the core job.
+- `steps/`: `registry` and one module per step with `Config`, `Result`,
+  `run` and its `IDS` (`ArtefactIds`). Steps import components, never
+  each other. A result's `dataset` is excluded from `to_dict()` (D26).
+- Tests that need an extra carry `@pytest.mark.extra("<distribution>")`
+  (`tests/conftest.py`), which skips only when the distribution is not
+  installed, so a broken import fails instead of skipping.
 - `core/dataset.py`: `Dataset` is a plain class (pandas frames are not
   pydantic fields); the fingerprint's canonical form is design §5.1.1.
   Changing what it hashes means a new format and new stored hashes.
