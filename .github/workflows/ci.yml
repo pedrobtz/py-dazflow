@@ -1,0 +1,175 @@
+name: CI
+
+# Profiles (see .agents/roadmap.md, "CI policy"):
+#   quick: ruff check, ruff format --check, and pytest in random order with
+#          coverage on Ubuntu / Python 3.13, latest dependencies. Pull requests.
+#   full:  ruff, pytest on Ubuntu and Windows x Python 3.12-3.14 and macOS x
+#          3.12 and 3.14, lowest direct dependencies, core only (no extras),
+#          and sdist + wheel with twine check. Pushes to main, manual runs,
+#          and pull requests labelled `full-ci`.
+# A pull request that changes only Markdown or .agents/ skips every job after
+# `changes`. The filter is a job, not `paths-ignore`, so the checks still report
+# (as skipped) and a required check never waits for a run that never starts.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# A pull request's superseded runs are cancelled; a push to main never is, so
+# every merge commit gets a complete full-profile run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  UV_PYTHON_DOWNLOADS: automatic
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+      profile: ${{ steps.profile.outputs.profile }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: filter
+        name: Does the change reach code?
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$EVENT" != "pull_request" ]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          files=$(git diff --name-only "$BASE...$HEAD")
+          printf '%s\n' "$files"
+          # Documentation only: every changed file is Markdown or under .agents/.
+          if [ -n "$files" ] && ! printf '%s\n' "$files" | grep -vE '(\.md$|^\.agents/)' > /dev/null; then
+            echo "Documentation only: tests skipped."
+            echo "code=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          fi
+      - id: profile
+        name: Which profile?
+        shell: bash
+        env:
+          FULL: ${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci') }}
+        run: |
+          if [ "$FULL" = "true" ]; then profile=full; else profile=quick; fi
+          echo "Profile: $profile"
+          echo "profile=$profile" >> "$GITHUB_OUTPUT"
+
+  lint:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: "3.13"
+      # The dev group alone: ruff needs neither the package nor its dependencies.
+      - run: uv run --frozen --only-group dev ruff check .
+      - run: uv run --frozen --only-group dev ruff format --check .
+
+  quick:
+    needs: changes
+    if: needs.changes.outputs.code == 'true' && needs.changes.outputs.profile == 'quick'
+    name: test (quick, ubuntu-latest, 3.13)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: "3.13"
+      # pytest-randomly shuffles the tests and prints the seed in the header;
+      # rerun a failure in the same order with `--randomly-seed=<seed>`.
+      - run: uv run --frozen --all-extras pytest --cov=dazflow --cov-report=term-missing
+
+  test:
+    needs: changes
+    if: needs.changes.outputs.code == 'true' && needs.changes.outputs.profile == 'full'
+    name: test (${{ matrix.os }}, ${{ matrix.python }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ["3.12", "3.13", "3.14"]
+        # macOS runners are scarce on the shared account, so macOS runs the
+        # oldest and newest Python only.
+        exclude:
+          - { os: macos-latest, python: "3.13" }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: ${{ matrix.python }}
+      - run: uv run --frozen --all-extras pytest --cov=dazflow --cov-report=term-missing
+
+  lowest:
+    needs: changes
+    if: needs.changes.outputs.code == 'true' && needs.changes.outputs.profile == 'full'
+    name: test (lowest direct dependencies, 3.12)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: "3.12"
+      - run: uv run --resolution lowest-direct --isolated --all-extras pytest
+      - name: Versions resolved
+        run: >-
+          uv run --resolution lowest-direct --isolated --all-extras python -c
+          "import numpy, pandas, scipy, statsmodels, arch;
+          print({m.__name__: m.__version__ for m in (numpy, pandas, scipy, statsmodels, arch)})"
+
+  core:
+    needs: changes
+    if: needs.changes.outputs.code == 'true' && needs.changes.outputs.profile == 'full'
+    name: test (core only, no extras)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: "3.13"
+      - name: No extra is installed
+        run: >-
+          uv run --frozen --no-extras python -c
+          "import importlib.util as u, sys;
+          found = [m for m in ('openpyxl', 'pyarrow', 'polars', 'sqlalchemy', 'sklearn', 'xarray', 'xlsxwriter') if u.find_spec(m)];
+          print('extras found:', found); sys.exit(bool(found))"
+      - run: uv run --frozen --no-extras pytest
+
+  package:
+    needs: changes
+    if: needs.changes.outputs.code == 'true' && needs.changes.outputs.profile == 'full'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: "3.13"
+      - run: uv build
+      - run: uv run --frozen --only-group dev twine check --strict dist/*
+      - name: sdist leaves out repository-only files
+        run: |
+          tar tzf dist/*.tar.gz
+          if tar tzf dist/*.tar.gz | grep -E '/(\.agents|\.github)/'; then
+            echo "::error::the sdist contains repository-only files"
+            exit 1
+          fi
+      # Stage 6 adds `dazflow run` from the installed wheel on the example project.
