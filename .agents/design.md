@@ -360,7 +360,17 @@ forms: [ols, arimax, theta]
 ```
 
 A new step is a module with a `Config`, a `Result` and `run()`, registered
-like any component and placed in the pipeline by name. Wrapper
+like any component and placed in the pipeline by name.
+
+Settled 2026-11-25 (Stage 6, D32): a step's `run()` keeps its own
+signature, and the pipeline calls it through an adapter registered by step
+name in `dazflow.pipeline.adapters` (`@register_adapter("build")`). An
+adapter receives the step module, its validated `Config` and `StepInputs`
+(the earlier results by name, the latest dataset, the project folder for
+relative paths, frames passed in memory, the previous vintage) and returns
+the step's result. A step with no adapter is called as
+`run(dataset, config)` with the latest dataset. The adapters live in the
+pipeline layer, which may import every step; steps still import none. Wrapper
 plugins for other forecasting libraries (statsforecast, sktime,
 skforecast, darts, prophet) are the intended way to add their models.
 They are separate packages or extras, not core.
@@ -675,6 +685,13 @@ not a Python package) for HTML and PDF.
 - `project.yaml` holds the name, target, drivers with expected signs,
   segments, scenarios, frequency, seed and the pipeline. `config/` holds
   one file per step, named after the step.
+  As built in 0.1.0 (2026-11-25, Stage 6, D33): `project.yaml` holds
+  `name`, `description`, `pipeline`, `seed`, `style` (a style file merged
+  onto the house style) and `previous` (the previous data vintage). The
+  target, drivers, expected signs and frequency stay in
+  `config/ingest.yaml`, where Stage 3 put them and where every later step
+  reads them from the series metadata: one place per setting. Segments and
+  scenarios come after 0.1.0.
 - Defaults are filled in and written to the run record, so a record
   never depends on the library's defaults at replay time.
 - Decisions live in configuration: shortlist, chosen model, treatments,
@@ -772,6 +789,24 @@ my-model/
     record.json
 ```
 
+Settled 2026-11-25 (Stage 6, D35):
+
+- Input paths in step configurations are read from the project folder;
+  the result and the record keep them as written, so a record does not
+  depend on where the folder is.
+- The previous vintage for clean's `revisions` check is configured in
+  `project.yaml` as `previous: {path: ...}` (a `ReadSpec`), for example an
+  earlier run's `data/interim/ingest.csv` copied under `data/raw/`. Unset,
+  the check does not apply. It is explicit in configuration and needs no
+  earlier run.
+- A run stops after the first step whose gate fails (failed checks that
+  are overridden count as passed), writes that step's outputs and the
+  record with `status: gate_failed`, and exits 2. Later steps would build
+  on a result the gate rejected; an override with a reason is the way on.
+- `run --from S` (and a step command, which is `--from S --to S`) carries
+  the steps before `S` from the last record, reading their datasets and
+  checking them against the recorded fingerprints.
+
 ### 10.1 Run record
 
 `reports/record.json` holds every step's configuration as run, the
@@ -779,6 +814,32 @@ results, checks, decisions and overrides, the environment (Python,
 platform, package versions) and a fingerprint for every input. Processed
 series are stored as CSV with a declared schema; Parquet is an option for
 large panels.
+
+Settled 2026-11-25 (Stage 6, D34). The record is
+`dazflow.pipeline.RunRecord`, `kind: "dazflow.record"`, `schema_version: 1`;
+`RunRecord.load` refuses another version, and a field that changes meaning
+raises the version. Fields: `run` (`id`, `started`, `finished` in UTC,
+`start`, `stop`, `steps` run, `carried` from the previous record,
+`status` `passed` or `gate_failed`, `stopped_at`); `project` (project.yaml
+as run, defaults filled); `pipeline`; `config` (each step's configuration
+as run, every default filled in, input paths as written); `results` (each
+step's `to_dict()`); `checks` (every gate check with its `step`);
+`overrides` (every configured override with its `step`); `environment`
+(`python`, `implementation`, `platform`, `machine`, `packages`: dazflow
+and its installed requirements); `inputs` (`step`, `name`, `path`, `kind`
+`file-sha256` with the SHA-256 of the file's bytes, or `dataset` with the
+fingerprint of a frame passed in memory; the previous vintage is one); and
+`datasets` (each step's dataset fingerprint and path). A step's dataset is
+written as `data/interim/<step>.csv` for ingest and clean and
+`data/processed/<step>.csv` after them, first column `period`, with
+`<step>.schema.json` holding the dtypes, series metadata, log and
+fingerprint (`dazflow.dataset-csv/1`); reading it back checks the
+fingerprint, so an edited file is refused. Values are parsed with
+Python's `float()`, which inverts `repr()` exactly on every pandas
+version. Each step's artefacts are written to `reports/<step>/` (tables as
+`.md` and `.html`, figures as `.svg`, findings as `.md`, and
+`result.json`), the folder replaced on each run of the step, with the run
+id and the dataset fingerprint in every source note.
 
 ### 10.2 Versions
 
@@ -810,6 +871,15 @@ dazflow plugins                    list registered components
 A step command writes to `reports/<step>/` and prints a short summary.
 `--json` prints the result as JSON. Exit code 0 on success, 1 on error,
 2 when a step completed with a failed gate.
+
+As built 2026-11-25 (Stage 6): every command takes `--project/-p` (default
+the working directory) and `--json`. A step command prints its
+`StepResult.to_dict()`; `run --json` prints the record; `show --json` the
+artefact; `plugins --json` the keys of every registry; `validate --json`
+what it read. Each step registered in `dazflow.steps.registry`, a plugin's
+included, gets a command of its name, except the reserved names `init`,
+`validate`, `run`, `show`, `plugins`, `replay` and `model`. Errors go to
+standard error. `replay` and `model` come in Stages 11 and after 0.1.0.
 
 ## 12 Packages
 
@@ -932,7 +1002,10 @@ Each statistical result needs an oracle, not just a passing run.
   them; raise one only when a stage needs a newer feature, with a reason).
   pydantic raised to 2.8 (2026-11-25, Stage 1: `ser_json_inf_nan="strings"`,
   which `StepResult.to_dict()` needs for NaN and infinite check values,
-  arrived in 2.8).
+  arrived in 2.8). typer raised to 0.26.0 and rich to 13.8 (2026-11-25,
+  Stage 6: typer before 0.26 imports click APIs that click 8.5 deprecates,
+  so the lowest-direct job fails under `-W error`; 0.26 vendors click and
+  needs rich 13.8).
 - **D16.** The dataset fingerprint is the SHA-256 of the canonical JSON
   form in §5.1.1, written value by value, without the log (2026-11-25,
   Stage 1: identical across platforms, Python 3.12–3.14 and the lowest
@@ -952,6 +1025,11 @@ Each statistical result needs an oracle, not just a passing run.
   cannot be evaluated as configured) and `CleanError` (a treatment names
   what the data lack) (2026-11-25). Stage 5 adds `ExploreError` (a series
   cannot be profiled, tested or screened as configured) (2026-11-25).
+  Stage 6 adds `PipelineError` (a pipeline cannot be built or run as
+  configured), `ProjectError` (a project folder cannot be created, read or
+  written) and `RecordError` (a run record or a stored dataset cannot be
+  read, is of another version or does not match its fingerprint)
+  (2026-11-25).
 - **D18.** Registry: `Registry(kind, protocol=None)`, `@registry.register(key)`
   and `registry.add(key, obj)`; keys are non-empty strings registered once
   (`DuplicateKeyError`); a component lacking a protocol member is refused;
@@ -978,7 +1056,12 @@ Each statistical result needs an oracle, not just a passing run.
   `dz.MissingExtraError` and `dz.IngestError` (2026-11-25, Stage 3).
   Stage 4 adds `dz.checks` and `dz.clean`, and `dz.CheckError` and
   `dz.CleanError` (2026-11-25). Stage 5 adds `dz.explore` and
-  `dz.ExploreError` (2026-11-25).
+  `dz.ExploreError` (2026-11-25). Stage 6 adds `dz.pipeline` (`Pipeline`,
+  `Run`, `RunRecord`, `StepInputs`, `adapters`, `register_adapter`),
+  `dz.project` (`Project`, `ProjectConfig`, `init`, `load`,
+  `write_dataset`, `read_dataset`, `commented_yaml`), the errors
+  `dz.PipelineError`, `dz.ProjectError` and `dz.RecordError`, and the
+  `dazflow` console script (`dazflow.cli:main`) (2026-11-25).
 - **D21.** Artefact identifiers: `T`, `F` and `S` (findings) with the §7
   step number and a number declared per artefact in `ArtefactIds`;
   `StepResult.artefacts` is sorted by identifier (2026-11-25, Stage 2:
@@ -1086,6 +1169,28 @@ Each statistical result needs an oracle, not just a passing run.
   scale. Arch versions disagree on a constant series (7.0's KPSS returns a
   statistic, later releases raise), so a constant series is reported as
   untestable before arch is called.
+
+- **D32.** The pipeline passes results between steps through per-step
+  adapters in the pipeline layer, registered by step name; a step without
+  one is called as `run(dataset, config)` with the latest dataset
+  (2026-11-25, Stage 6: the steps' signatures differ, `ingest.run(config,
+  data=)`, `clean.run(dataset, config, previous=)`, and a later step needs
+  a named earlier result such as `explore`; an adapter keeps each step
+  callable on its own with its natural signature, while a uniform
+  `run(inputs, config)` would make every step unpack a bag of inputs it
+  does not own).
+- **D33.** `project.yaml` holds name, description, pipeline, seed, style and
+  the previous vintage; series, roles, signs and frequency stay in
+  `config/ingest.yaml` (2026-11-25, Stage 6: one place per setting, as §8
+  is built; see §8).
+- **D34.** The run record is `RunRecord`, schema version 1, as §10.1
+  lists; datasets are CSV with a JSON schema file and a checked fingerprint
+  (2026-11-25, Stage 6: replay in Stage 11 reads by version, and a CSV is
+  readable without dazflow).
+- **D35.** Relative input paths are read from the project folder and
+  recorded as written; the previous vintage is `project.yaml: previous`; a
+  failed gate stops the run after that step with exit code 2 (2026-11-25,
+  Stage 6: see §10).
 
 ## 15 Build order
 

@@ -24,8 +24,11 @@ __all__ = [
     "GateError",
     "IngestError",
     "MissingExtraError",
+    "PipelineError",
     "PluginError",
+    "ProjectError",
     "ReaderError",
+    "RecordError",
     "RegistryError",
     "RenderError",
     "ResultError",
@@ -130,6 +133,18 @@ class CleanError(DazflowError):
 
 class ExploreError(DazflowError):
     """The explore step cannot profile, test or screen the series as configured."""
+
+
+class PipelineError(DazflowError):
+    """A pipeline cannot be built or run as configured, such as an unknown step or order."""
+
+
+class ProjectError(DazflowError):
+    """A project folder cannot be created, read or written, or its run record is missing."""
+
+
+class RecordError(DazflowError):
+    """A run record cannot be read, is of another schema version, or does not match its data."""
 
 
 class ResultError(DazflowError):

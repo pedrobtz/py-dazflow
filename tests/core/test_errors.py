@@ -15,6 +15,9 @@ CLASSES = [
     errors.UnknownKeyError,
     errors.DuplicateKeyError,
     errors.PluginError,
+    errors.PipelineError,
+    errors.ProjectError,
+    errors.RecordError,
 ]
 
 

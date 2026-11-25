@@ -1,0 +1,17 @@
+# dazflow project. Every setting is written with its default; edit what you need.
+# Each step reads config/<step>.yaml. Run `dazflow validate`, then `dazflow run`.
+
+# The project's name, used in reports.
+name: loss-rate
+# One line on what the model is for.
+description: null
+# The steps `dazflow run` runs, in order; each reads config/<step>.yaml.
+pipeline: [ingest, clean, explore]
+# Seed for any random draw a step makes.
+seed: 0
+# A style YAML file merged onto the house style, relative to this folder.
+style: null
+# The previous vintage of the data, for clean's revisions check: a file of the same
+# series, such as an earlier run's data/interim/ingest.csv kept under data/raw/.
+# Unset: the revisions check does not apply. Example: previous: {path: data/raw/v1.csv}
+previous: null

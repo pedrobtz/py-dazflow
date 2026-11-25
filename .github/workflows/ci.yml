@@ -5,7 +5,8 @@ name: CI
 #          coverage on Ubuntu / Python 3.13, latest dependencies. Pull requests.
 #   full:  ruff, pytest on Ubuntu and Windows x Python 3.12-3.14 and macOS x
 #          3.12 and 3.14, lowest direct dependencies, core only (no extras),
-#          and sdist + wheel with twine check. Pushes to main, manual runs,
+#          and sdist + wheel with twine check, then `dazflow run` from the
+#          installed wheel on examples/loss-rate. Pushes to main, manual runs,
 #          and pull requests labelled `full-ci`.
 # A pull request that changes only Markdown or .agents/ skips every job after
 # `changes`. The filter is a job, not `paths-ignore`, so the checks still report
@@ -174,4 +175,24 @@ jobs:
             echo "::error::the sdist contains repository-only files"
             exit 1
           fi
-      # Stage 6 adds `dazflow run` from the installed wheel on the example project.
+      # The built wheel, installed alone in a clean environment, runs the example
+      # project end to end. Any non-zero exit (an error, or 2 for a failed gate)
+      # fails the job, and the record must say the run passed.
+      - name: dazflow run from the installed wheel on the example project
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv venv --python 3.13 "$RUNNER_TEMP/wheel-env"
+          VIRTUAL_ENV="$RUNNER_TEMP/wheel-env" uv pip install dist/*.whl
+          dazflow="$RUNNER_TEMP/wheel-env/bin/dazflow"
+          cp -r examples/loss-rate "$RUNNER_TEMP/loss-rate"
+          cd "$RUNNER_TEMP/loss-rate"
+          "$dazflow" --version
+          "$dazflow" validate
+          "$dazflow" run
+          "$RUNNER_TEMP/wheel-env/bin/python" - <<'PY'
+          import json, sys
+          record = json.load(open("reports/record.json"))
+          print(record["run"]["status"], record["run"]["steps"])
+          sys.exit(record["run"]["status"] != "passed" or record["run"]["steps"] != ["ingest", "clean", "explore"])
+          PY

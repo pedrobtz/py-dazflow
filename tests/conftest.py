@@ -7,8 +7,11 @@ extra, so these tests run there; the core job installs none, so they skip.
 """
 
 import importlib.metadata
+import shutil
+from pathlib import Path
 
 import pytest
+from example_helpers import EXAMPLE
 
 
 def installed(distribution: str) -> bool:
@@ -36,3 +39,26 @@ def pytest_runtest_setup(item):
 @pytest.fixture
 def distribution_installed():
     return installed
+
+
+# --- the example project (examples/loss-rate) ------------------------------------
+
+
+@pytest.fixture
+def example(tmp_path) -> Path:
+    """A fresh copy of the example project, safe to change."""
+    dest = tmp_path / "loss-rate"
+    shutil.copytree(EXAMPLE, dest)
+    return dest
+
+
+@pytest.fixture(scope="session")
+def ran_example(tmp_path_factory) -> Path:
+    """A copy of the example project after `dazflow run`. Read it; do not change it."""
+    from dazflow import project
+
+    dest = tmp_path_factory.mktemp("ran") / "loss-rate"
+    shutil.copytree(EXAMPLE, dest)
+    proj = project.load(dest)
+    proj.write(proj.run())
+    return dest

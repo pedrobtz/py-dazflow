@@ -1,0 +1,83 @@
+# clean: data-quality checks and treatments (design §7.2). Every treatment needs a reason.
+
+completeness:
+  enabled: true
+  # The series checked; unset: every numeric series the check applies to.
+  columns: null
+  warning: 1.0
+  error: 0.1
+  # Failing units that are critical.
+  critical: null
+gaps:
+  enabled: true
+  # The series checked; unset: every numeric series the check applies to.
+  columns: null
+  # Failing units that raise a warning.
+  warning: null
+  # Failing units at which the gate check fails.
+  error: 1.0
+  # Failing units that are critical.
+  critical: null
+  # Longest accepted run of missing periods.
+  max_length: 0
+duplicates:
+  enabled: true
+  # The series checked; unset: every numeric series the check applies to.
+  columns: null
+  warning: 1.0
+  error: 0.1
+  # Failing units that are critical.
+  critical: null
+range:
+  enabled: true
+  # The series checked; unset: every numeric series the check applies to.
+  columns: null
+  # Failing units that raise a warning.
+  warning: null
+  # Failing units at which the gate check fails.
+  error: 1.0
+  # Failing units that are critical.
+  critical: null
+  # [lower, upper] per series; null leaves that side open.
+  bounds: {}
+revisions:
+  enabled: true
+  # The series checked; unset: every numeric series the check applies to.
+  columns: null
+  # Failing units that raise a warning.
+  warning: null
+  # Failing units at which the gate check fails.
+  error: 1.0
+  # Failing units that are critical.
+  critical: null
+  # Largest accepted relative revision.
+  tolerance: 0.01
+outliers:
+  enabled: true
+  # The series checked; unset: every numeric series the check applies to.
+  columns: null
+  warning: 1.0
+  error: 0.05
+  # Failing units that are critical.
+  critical: null
+  # Largest accepted robust z-score.
+  z: 4.0
+  # STL seasonal smoother, in years; odd.
+  seasonal: 13
+  # Trend smoother in periods; odd; unset: STL's default.
+  trend: null
+representativeness:
+  enabled: true
+  # The series checked; unset: every numeric series the check applies to.
+  columns: null
+  # Failing units that raise a warning.
+  warning: null
+  # Failing units at which the gate check fails.
+  error: 1.0
+  # Failing units that are critical.
+  critical: null
+  downturns: []
+# Checks registered by plugins, by registry key, with their configuration.
+custom: {}
+treatments: []
+overrides: []

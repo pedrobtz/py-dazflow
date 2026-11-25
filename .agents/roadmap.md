@@ -56,7 +56,7 @@ checks something the stage introduces and later stages build on.
 | 3 | [Transforms, readers and ingest](#stage-3--transforms-readers-and-ingest) | quick | [#5](https://github.com/pedrobtz/py-dazflow/issues/5) | [#23](https://github.com/pedrobtz/py-dazflow/pull/23) | 2026-11-25 |
 | 4 | [Clean](#stage-4--clean) | quick | [#6](https://github.com/pedrobtz/py-dazflow/issues/6) | [#24](https://github.com/pedrobtz/py-dazflow/pull/24) | 2026-11-25 |
 | 5 | [Explore](#stage-5--explore) | quick | [#7](https://github.com/pedrobtz/py-dazflow/issues/7) | [#25](https://github.com/pedrobtz/py-dazflow/pull/25) | 2026-11-25 |
-| 6 | [Pipeline, record and command line](#stage-6--pipeline-record-and-command-line) | quick | [#8](https://github.com/pedrobtz/py-dazflow/issues/8) | | |
+| 6 | [Pipeline, record and command line](#stage-6--pipeline-record-and-command-line) | quick | [#8](https://github.com/pedrobtz/py-dazflow/issues/8) | [#26](https://github.com/pedrobtz/py-dazflow/pull/26) | 2026-11-25 |
 | 7 | [Model forms and evaluation](#stage-7--model-forms-and-evaluation) | full | [#9](https://github.com/pedrobtz/py-dazflow/issues/9) | | |
 | 8 | [Build and select](#stage-8--build-and-select) | quick | [#10](https://github.com/pedrobtz/py-dazflow/issues/10) | | |
 | 9 | [Forecast](#stage-9--forecast) | quick | [#11](https://github.com/pedrobtz/py-dazflow/issues/11) | | |
@@ -430,6 +430,21 @@ record. Later stages plug into this.
 **Design.** [§8](design.md#8-configuration),
 [§10](design.md#10-project-folder-runs-and-versions),
 [§11](design.md#11-command-line).
+
+**As built** (2026-11-25). Steps keep their own `run()` signatures; the
+pipeline calls each through an adapter registered by step name, and a
+step without one gets `run(dataset, config)` (D32). The previous vintage
+is `project.yaml: previous`, input paths are read from the project folder
+and recorded as written, and a failed gate stops the run after that step
+with exit 2 (D35). The record is `RunRecord` schema version 1 (D34);
+datasets are CSV with a schema file whose fingerprint is checked when a
+later step reads them. `project.yaml` does not hold the target, drivers or
+frequency, which stay in `config/ingest.yaml` (D33, a deviation from §8's
+list). The example project `examples/loss-rate` is exactly what `dazflow
+init` writes, and the full profile's `package` job now installs the wheel
+in a clean environment and runs it. typer's lower bound rose to 0.26.0 and
+rich's to 13.8 (D15): typer before 0.26 fails the lowest-direct job under
+`-W error` with click 8.5.
 
 ## Stage 7 — Model forms and evaluation
 

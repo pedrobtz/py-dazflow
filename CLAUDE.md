@@ -54,6 +54,9 @@ and `steps/clean.py`.
 2026-11-25, Stage 5: `steps/explore.py` (profile, unit-root tests read
 into an order of integration, lag search, HAC screen, sign gate).
 
+2026-11-25, Stage 6: `src/dazflow/pipeline/`, `src/dazflow/project/`,
+`src/dazflow/cli/` (the `dazflow` command) and `examples/loss-rate`.
+
 ## Versions and dependents
 
 `v0.1.0` issue: see the roadmap header. Dependents: none.
@@ -130,6 +133,25 @@ To be written as stages land; see `.agents/design.md` §4 for the layers
   functions. Catch arch's `InfeasibleTestException` by name (it is not a
   `ValueError` in arch 7.0), never a bare `Exception`: under pytest's
   `-W error` a warning would turn into a missing test.
+- `pipeline/`: `_adapters.py` (`StepInputs`, the `adapters` registry,
+  `default_adapter`, the ingest and clean adapters, `InputRecord`),
+  `_pipeline.py` (`Pipeline`, `Run`), `_record.py` (`RunRecord`, schema
+  version 1, `environment()`). A new step joins by being in
+  `dazflow.steps.registry` and, if `run(dataset, config)` does not fit,
+  registering an adapter with `@register_adapter("<step>")` (D32). The
+  pipeline and `Project.run()` write nothing; only `Project.write()` does.
+- `project/`: `_folder.py` (`ProjectConfig`, `Project`, `init`, `load`),
+  `_datasets.py` (dataset CSV plus `<step>.schema.json`, fingerprint
+  checked on read), `_commented.py` (`commented_yaml`), `example/series.csv`
+  (the data `init` copies). `examples/loss-rate` must equal what `init`
+  writes (`tests/cli/test_init.py`): after changing a default or a field
+  description, regenerate it with `rm -rf examples/loss-rate && uv run
+  dazflow init examples/loss-rate`.
+- `cli/`: typer, built on import; each registered step gets a command.
+  Commands catch `DazflowError` (message to stderr, exit 1); a failed gate
+  is exit 2.
+- Never run `uv run --resolution lowest-direct` without restoring
+  `uv.lock` afterwards: it rewrites the lock with the lowest versions.
 - Tests that need an extra carry `@pytest.mark.extra("<distribution>")`
   (`tests/conftest.py`), which skips only when the distribution is not
   installed, so a broken import fails instead of skipping.
@@ -177,6 +199,7 @@ lowest-direct run still passes before committing.
 
 ## Continuous integration
 
-None yet. Expected to mirror `py-dazdiff`: a `quick` profile on pull
-requests and a `full` profile on `main` and on pull requests labelled
-`full-ci`.
+See "Commands" above. The full profile's `package` job also installs the
+built wheel into a clean environment and runs `dazflow validate` and
+`dazflow run` on a copy of `examples/loss-rate`; a non-zero exit or a
+record whose status is not `passed` fails the job.
