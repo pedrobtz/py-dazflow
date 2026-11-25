@@ -266,8 +266,11 @@ check is kept and changes nothing. A `Finding` is a jinja2 template
 integers, finite floats or strings; its `text` is rendered when it is made.
 `to_dict()` is the pydantic JSON dump with non-finite floats as the
 strings `"NaN"`, `"Infinity"`, `"-Infinity"` (strict JSON), and
-`from_dict()` on the same subclass rebuilds an equal result. Until Stage 2
-adds `Table` and `Figure`, `artefacts` holds `Finding`s only.
+`from_dict()` on the same subclass rebuilds an equal result.
+`artefacts` holds `Table`, `Figure` and `Finding`, keyed by identifier,
+sorted tables first, then figures, then findings, each by step and number;
+a key must be the artefact's own `id`, and a finding's key has the form
+`S<step>.<n>` (2026-11-25, Stage 2, D21).
 
 ### 5.3 Fitted models
 
@@ -548,6 +551,45 @@ column, restyles a chart or writes a caption.
 | Findings and Markdown sections | jinja2 |
 | Excel (optional) | xlsxwriter |
 
+Settled 2026-11-25 (Stage 2, D21–D25):
+
+- **Objects and renderers.** `Table`, `Column`, `Figure`, `Layer` and
+  `Source` are plain JSON-safe data in `core/artefact.py`, because
+  `StepResult` holds them and core imports nothing above it; `render/`
+  holds the style, the renderers, `Section` and `Document`. A `Table`
+  holds unformatted cells (`None` for missing) under columns of kind
+  `number`, `integer`, `percent` (a fraction), `text`, `date` (ISO text)
+  or `status` (`pass`, `fail`, `overridden`); `Table.from_frame` and
+  `Table.from_gate` build the common cases. A `Figure` is a declarative
+  chart: shared `x` (numbers or labels) and `line`, `scatter`, `bar`,
+  `band` and `hline` layers, axis labels with units and an `aspect`; it is
+  drawn with matplotlib only when rendered. A `Source` is the run id, the
+  dataset fingerprint (64 hex digits), the date and an optional note.
+- **Identifiers.** `T<step>.<n>` (table), `F<step>.<n>` (figure),
+  `S<step>.<n>` (finding: a sentence). The step number is the step's
+  section number in §7 (`ingest` 1 … `report` 10). A step declares its
+  artefacts once, `ArtefactIds("explore", tables={"summary": 1, ...})`,
+  and asks `ids.table("summary")`: numbers come from the declaration, never
+  from creation order, so a rerun, a reordered step or a skipped artefact
+  keeps every other number. A retired number is not reused.
+- **Style.** `Style` is a `Config` with sections `fonts`, `numbers`
+  (decimals, thousands separator, decimal mark, missing-value text; one
+  `decimals` for number and percent cells), `dates` (a `strftime` format),
+  `page` (text width), `marks` (text, colour and weight of pass, fail and
+  overridden), `captions` (jinja2 templates for captions and the source
+  note, and the fingerprint digits shown), `figures` (font, size, palette,
+  dpi, an extra `.mplstyle`), `word` (reference `.docx`, table style) and
+  `findings` (template by finding `key`). `load_style` takes nothing (the
+  house style), a `Style`, a mapping or a YAML path; a mapping or file is
+  merged onto the house style setting by setting, file paths are relative
+  to the file, and an unknown setting is a `ConfigError`. The project
+  folder (Stage 6) passes its style file here.
+- **Formats.** Renderers are components in `dazflow.render.renderers`
+  keyed `docx`, `html`, `markdown`, `png`, `svg`; `render(obj, format,
+  style=, source=)` and `write(obj, path)` use them. Every format writes
+  cell text through the same formatting functions, so Word, HTML and
+  Markdown show the same characters.
+
 ## 10 Project folder, runs and versions
 
 The project folder is optional: every step also runs on objects in
@@ -742,7 +784,10 @@ Each statistical result needs an oracle, not just a passing run.
   `ResultError`), with a nested object's error reported by the outermost
   object. `DazflowError(problem, *, observed, change)` renders as three
   lines (2026-11-25, Stage 1: §4's classed-error rule, and one error type
-  per object for callers to catch).
+  per object for callers to catch). Stage 2 adds `ArtefactError` (a
+  `Table`, `Figure`, `Source`, `Section`, `Document` or identifier is not
+  valid) and `RenderError` (an artefact cannot be written in the format
+  asked for) (2026-11-25).
 - **D18.** Registry: `Registry(kind, protocol=None)`, `@registry.register(key)`
   and `registry.add(key, obj)`; keys are non-empty strings registered once
   (`DuplicateKeyError`); a component lacking a protocol member is refused;
@@ -758,7 +803,45 @@ Each statistical result needs an oracle, not just a passing run.
   and errors at the top level (`dz.Dataset`, `dz.Config`, `dz.Gate`,
   `dz.DazflowError`, ...) and as `dz.core`; `dazflow.testing` holds
   `ComponentContract`, which a plugin's tests subclass with `registry` and
-  `key` (2026-11-25, Stage 1).
+  `key` (2026-11-25, Stage 1). Stage 2 adds `dz.Table`, `dz.Figure`,
+  `dz.Column`, `dz.Layer`, `dz.Source`, `dz.ArtefactIds`, `dz.STEP_NUMBERS`,
+  `dz.ArtefactError` and `dz.RenderError`; `dz.render` is the rendering
+  module, imported on first use so that `import dazflow` does not load
+  matplotlib, great-tables and python-docx (2026-11-25, Stage 2).
+- **D21.** Artefact identifiers: `T`, `F` and `S` (findings) with the §7
+  step number and a number declared per artefact in `ArtefactIds`;
+  `StepResult.artefacts` is sorted by identifier (2026-11-25, Stage 2:
+  numbers fixed by declaration survive reruns and creation order, which
+  is what cross-references in written documents need; findings needed a
+  letter of their own and `F` was taken).
+- **D22.** Word tables and documents are written with python-docx, from
+  the same formatted cells as HTML and Markdown; an organisation's
+  reference `.docx` supplies styles, headers and page setup, and Word
+  takes its fonts from it when one is given (2026-11-25, Stage 2: settles
+  open question 2; great-tables has no Word export yet).
+- **D23.** Artefacts are data, rendering is separate: `Table` and `Figure`
+  live in core, hold no third-party object and round-trip through
+  `to_dict()`; a figure is a layer specification drawn by matplotlib at
+  render time, inside `matplotlib.style.context`, so rendering leaves the
+  global settings alone (2026-11-25, Stage 2: §4's rule that no
+  third-party object crosses a step boundary, and the run record).
+- **D24.** The style file is `dazflow.render.Style`, partial overrides
+  merged onto the house style by `load_style`; `Finding.key` names a
+  template the style may replace; floats in a finding are written in the
+  style when rendered, while `Finding.text` keeps the values as given
+  (2026-11-25, Stage 2: one decimal setting must change every number, and
+  rewording a finding needs no code).
+- **D25.** Rendered output is reproducible: great-tables gets the
+  artefact's id (`T3_1`), SVG text is drawn as paths with a fixed hash
+  salt and no date or creator metadata, PNG has no software stamp, and
+  figure margins are fixed in inches rather than computed by a layout
+  engine. The tests compare Markdown exactly, HTML as a normalised tree
+  (without great-tables' generated CSS, accessibility attributes and
+  non-alignment classes, which differ between great-tables 0.17 and 1.2),
+  and SVG after renumbering ids with a tolerance of 1 pt for coordinates
+  and 0.005 for scales (matplotlib 3.8.4 and 3.11 measure text heights up
+  to 0.5 pt apart), so one set of snapshots holds on every leg without
+  raising a lower bound (2026-11-25, Stage 2).
 
 ## 15 Build order
 
@@ -778,8 +861,8 @@ command line, then MCP server, then forms interface.
 ## 17 Open questions
 
 1. **Quality engine.** Settled by D12: pointblank.
-2. **Word tables.** Use great-tables' Word export once released, or keep
-   a python-docx table renderer permanently.
+2. **Word tables.** Settled by D22: python-docx now; great-tables' Word
+   export is reconsidered once it is released.
 3. **Systems backend.** Confirm statsmodels `VECM` covers the
    cointegrated cases needed, or defer systems.
 4. **Segment order.** Models may need building per segment from

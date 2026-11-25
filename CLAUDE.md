@@ -41,6 +41,10 @@ yet.
 2026-11-25, Stage 1: `src/dazflow/core/` (Dataset, Config, Check, Gate,
 Override, Finding, StepResult, Registry, errors) and `dazflow.testing`.
 
+2026-11-25, Stage 2: `core/artefact.py` (Table, Figure, Source,
+ArtefactIds) and `src/dazflow/render/` (style, renderers, Section,
+Document).
+
 ## Versions and dependents
 
 `v0.1.0` issue: see the roadmap header. Dependents: none.
@@ -83,6 +87,15 @@ To be written as stages land; see `.agents/design.md` §4 for the layers
 - `core/_model.py`: `DazflowModel`, the frozen pydantic base that turns
   `ValidationError` into the model's `DazflowError` subclass. New core
   objects subclass it and set `_error` and `_hint`.
+- `core/artefact.py`: `Table`, `Figure` and `Source` are data, with no
+  third-party object (D23); `ArtefactIds` numbers a step's artefacts by
+  declaration (D21). Never renumber a declared artefact.
+- `render/`: `style.py` (`Style`, `load_style`), `format.py` (every
+  renderer writes cell, finding, caption and source text through it),
+  `_tables.py` (great-tables HTML, Markdown), `_figures.py` (matplotlib,
+  inside `matplotlib.style.context`; SVG settings fixed in code),
+  `_docx.py` (python-docx), `renderers.py` (the `renderers` registry,
+  `render`, `write`). `dz.render` is imported lazily.
 - `core/dataset.py`: `Dataset` is a plain class (pandas frames are not
   pydantic fields); the fingerprint's canonical form is design §5.1.1.
   Changing what it hashes means a new format and new stored hashes.
@@ -117,6 +130,13 @@ The design's §13 lists the oracles each result needs, and a public
 contract suite, `dazflow.testing`, that every component passes. Tests live
 under `tests/<package>/`. `tests/core/test_fingerprint.py` holds stored
 SHA-256 values that every full-profile leg must reproduce.
+
+Rendering snapshots live in `tests/render/__snapshots__/` and must match
+on every full-profile leg, lowest-direct included. Markdown is compared
+exactly, HTML as a normalised tree and SVG with a tolerance
+(`tests/render/snapshot_helpers.py`, D25). Regenerate with
+`uv run pytest tests/render --snapshot-update`, then check the
+lowest-direct run still passes before committing.
 
 ## Continuous integration
 
