@@ -32,7 +32,7 @@ reset:
   # The highest power of the fitted values added.
   power: 3
 cusum:
-  # Level of the OLS-residual CUSUM test and of the recursive CUSUM's bounds (Brown, Durbin and Evans tabulate 0.01, 0.05 and 0.10).
+  # Level of the OLS-residual CUSUM test and of the recursive CUSUM's bounds: 0.01, 0.05 or 0.10, the levels Brown, Durbin and Evans tabulate.
   alpha: 0.05
   # Most periods the recursive CUSUM may lie outside its bounds.
   max_crossings: 0
