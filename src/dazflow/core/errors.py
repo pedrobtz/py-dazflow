@@ -12,6 +12,7 @@ change::
 from __future__ import annotations
 
 __all__ = [
+    "ArtefactError",
     "ConfigError",
     "DatasetError",
     "DazflowError",
@@ -20,6 +21,7 @@ __all__ = [
     "GateError",
     "PluginError",
     "RegistryError",
+    "RenderError",
     "ResultError",
     "UnknownKeyError",
 ]
@@ -59,6 +61,14 @@ class GateError(DazflowError):
 
 class FindingError(DazflowError):
     """A `Finding` template could not be filled with its values."""
+
+
+class ArtefactError(DazflowError):
+    """A `Table`, `Figure`, `Source`, `Section`, `Document` or artefact identifier is not valid."""
+
+
+class RenderError(DazflowError):
+    """An artefact could not be rendered in the format asked for."""
 
 
 class ResultError(DazflowError):

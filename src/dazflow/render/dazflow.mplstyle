@@ -1,0 +1,30 @@
+# dazflow house style for figures (design §9).
+# The font, its size, the colours and the page width come from the Style
+# object, and SVG output settings are fixed in code so that figures match on
+# every platform; this file holds the rest of the look.
+
+axes.spines.top: False
+axes.spines.right: False
+axes.edgecolor: 595959
+axes.linewidth: 0.8
+axes.labelcolor: 262626
+axes.grid: True
+axes.grid.axis: y
+axes.axisbelow: True
+axes.titlesize: medium
+grid.color: D9D9D9
+grid.linewidth: 0.6
+grid.linestyle: -
+xtick.color: 404040
+ytick.color: 404040
+xtick.direction: out
+ytick.direction: out
+lines.linewidth: 1.5
+lines.markersize: 4
+patch.linewidth: 0
+legend.frameon: False
+legend.loc: upper left
+legend.fontsize: small
+figure.facecolor: white
+savefig.facecolor: white
+text.color: 262626

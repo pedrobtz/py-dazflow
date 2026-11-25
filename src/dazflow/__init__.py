@@ -12,3 +12,17 @@ except PackageNotFoundError:  # pragma: no cover - running from a source tree
     __version__ = "0+unknown"
 
 __all__ = ["__version__", "core", *_core_all]
+
+
+def __getattr__(name: str):
+    # `dz.render` imports matplotlib, great-tables and python-docx, so it loads
+    # on first use rather than with `import dazflow`.
+    if name == "render":
+        import importlib
+
+        return importlib.import_module("dazflow.render")
+    raise AttributeError(f"module 'dazflow' has no attribute {name!r}")
+
+
+def __dir__() -> list[str]:
+    return sorted([*__all__, "render"])

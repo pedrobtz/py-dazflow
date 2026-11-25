@@ -94,4 +94,9 @@ ignore = ["E501"]  # line length is the formatter's job
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = ["-ra"]
-filterwarnings = ["error"]
+filterwarnings = [
+    "error",
+    # matplotlib before 3.9 calls pyparsing's camel-case names, which pyparsing
+    # 3.3 deprecates; only the lowest-direct job (matplotlib 3.8.4) meets it.
+    "ignore:'\\w+' deprecated - use '\\w+':DeprecationWarning",
+]
