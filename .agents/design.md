@@ -566,6 +566,14 @@ when a package is adopted.
 | `excel` | xlsxwriter | Excel artefacts |
 | `credit` | optbinning, scikit-learn | binning, AUC, PSI, migration |
 
+Stage 0 put these groups into `pyproject.toml` with lower bounds that
+resolve and install on Python 3.12 (2026-11-25). Two differ from the
+table: `fast` is empty, because statsforecast 2.0.2 and later cap pandas
+below 3 and 2.0.1 ships wheels for Python 3.12 only, so including it would
+hold the whole lock to pandas 2; `breaks` installs ruptures only on Python
+< 3.14, which ruptures 1.1.10 declares and has no wheels for. Each is
+revisited when its extra's work starts (After 0.1.0).
+
 ### 12.3 Candidate plugin backends
 
 Not dependencies of `dazflow`. Each would be wrapped by a separate
@@ -634,6 +642,17 @@ Each statistical result needs an oracle, not just a passing run.
 - **D13.** `Dataset` holds panels as one frame with a `(segment, period)`
   MultiIndex; a single-segment dataset has a plain `PeriodIndex`
   (2026-11-25, maintainer: settles open question 7, as §5.1 described).
+- **D14.** Version scheme: `pyproject.toml` holds the next release as a
+  development version (`0.1.0.dev0` until 0.1.0), read at run time through
+  `importlib.metadata`, as in `py-dazdiff` (2026-11-25, Stage 0: one
+  source of the version, and PEP 440 orders it before 0.1.0).
+- **D15.** Lower bounds of core dependencies are the oldest releases with
+  Python 3.12 wheels that also satisfy pointblank and each other: pandas
+  2.2.2, numpy 1.26.4, scipy 1.13, statsmodels 0.14.2, arch 7.0, narwhals
+  2.8, pointblank 0.13, pydantic 2.7, PyYAML 6.0.1, great-tables 0.17,
+  python-docx 1.1.2, matplotlib 3.8.4, jinja2 3.1.4, typer 0.12.3, rich
+  13.7 (2026-11-25, Stage 0: the full profile's lowest-direct job tests
+  them; raise one only when a stage needs a newer feature, with a reason).
 
 ## 15 Build order
 

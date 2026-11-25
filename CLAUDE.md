@@ -32,7 +32,11 @@ Like `py-dazdiff`, this is a Python package, so the r-skills shared rules
 ## Current state
 
 Empty repository as of 2026-11-25: the design, this file and an
-unexecuted Get started page. No `pyproject.toml`, source, tests or CI yet.
+unexecuted Get started page.
+
+2026-11-25, Stage 0: an installable, empty `dazflow` (`0.1.0.dev0`) with
+`pyproject.toml`, `uv.lock`, one test and the CI workflow. No library code
+yet.
 
 ## Versions and dependents
 
@@ -40,10 +44,33 @@ unexecuted Get started page. No `pyproject.toml`, source, tests or CI yet.
 
 ## Commands
 
-None yet. The layout follows `py-dazdiff`: `src/dazflow/`, hatchling,
-uv, ruff and pytest, so once `pyproject.toml` exists the loop is
-`uv sync`, `uv run pytest`, `uv run ruff check .` and
-`uv run ruff format .`.
+```sh
+uv sync --all-extras          # install, with the dev group and every extra
+uv run pytest                 # tests, in random order (seed in the header)
+uv run pytest -p no:randomly  # tests in file order
+uv run pytest --randomly-seed=<seed>   # replay a CI order
+uv run pytest --cov=dazflow --cov-report=term-missing   # as CI runs them
+uv run ruff check .           # lint
+uv run ruff format .          # format (CI runs `ruff format --check .`)
+uv build                      # sdist and wheel into dist/
+uv run twine check --strict dist/*
+uv add '<pkg>>=<lowest>'      # a core dependency; then commit uv.lock
+uv add --optional <extra> '<pkg>>=<lowest>'   # a package in an extra
+uv add --dev '<pkg>>=<lowest>'                # a dev-group tool
+uv run --resolution lowest-direct --isolated --all-extras --python 3.12 pytest
+```
+
+A new dependency's lower bound is the oldest release that installs on
+Python 3.12 and passes the lowest-direct run above (design D15).
+`uv.lock` is committed and CI runs with `--frozen`, so relock (`uv lock`)
+whenever `pyproject.toml` changes.
+
+CI (`.github/workflows/ci.yml`): pull requests run `quick` (lint, then
+pytest with every extra and coverage on Ubuntu / 3.13); pushes to `main`,
+manual runs and pull requests labelled `full-ci` run `full` (the matrix,
+lowest direct dependencies, core only, package). Its `changes` job skips
+every other job when a pull request touches only `*.md` files or
+`.agents/`.
 
 ## Architecture
 
