@@ -923,6 +923,67 @@ rolling-coefficient charts.
 `linear_reset`, `RecursiveLS`, `breaks_cusumolsresid`, `RollingOLS`;
 optional ruptures for change points and SALib for global sensitivity.
 
+Settled 2026-11-25 (Stage 10, D42). `dz.diagnose.run(dataset, config=None,
+*, select, forecast=None)` takes the series in levels select ran on (its
+fingerprint, scenarios left out, must be select's), select's result and,
+optionally, forecast's result for the same model, which only sets the
+sensitivity horizon. Select's `record` is refitted on
+`select.design.frames(levels)`, so the data's fingerprint is checked.
+
+- **Applicability.** The regression-based tests (Breusch-Godfrey,
+  Breusch-Pagan, White, RESET, both CUSUM tests, Chow, rolling
+  coefficients) are tests of an OLS regression and run on a statsmodels
+  OLS of the same design matrix; they apply to the `ols` form only.
+  Ljung-Box applies to every estimated form (with the ARMA order as
+  `model_df` for an ARIMAX); ARCH and Jarque-Bera to every form but `glm`,
+  whose family sets its variance. No test applies to a benchmark. A test
+  that does not apply is recorded with its reason, listed under the
+  diagnostics table and left out of the gate.
+- **Residual tests**, each a check `p-value >= alpha` (`alpha` 0.05):
+  Ljung-Box, Breusch-Godfrey and ARCH over `lags` (unset: twice the
+  seasonal period, 10 for annual data, at most a fifth of the sample;
+  Hyndman), Breusch-Pagan and White on the regressors with a constant,
+  Jarque-Bera, RESET (`power` 3).
+- **Stability.** `cusum`: `breaks_cusumolsresid` on the OLS residuals,
+  `p-value >= alpha`; `cusum-recursive`: the periods where `RecursiveLS`'s
+  CUSUM lies outside Brown, Durbin and Evans' bounds, `<= max_crossings`
+  (0). `alpha` is 0.01, 0.05 or 0.10, the levels they tabulate (constants
+  1.143, 0.948, 0.850; statsmodels' private bound uses 0.950 at 0.10).
+  Chow (own code): F = ((RSS_pooled − RSS_1 − RSS_2)/k) /
+  ((RSS_1 + RSS_2)/(n − 2k)) on F(k, n − 2k), every coefficient allowed to
+  change from the break on, at the configured `breaks`, else at
+  `candidates`, fractions of the sample fixed before the data are seen
+  (default the middle, 0.5), each `p-value >= alpha`; a break with no more
+  than k observations on a side is not applicable. Rolling coefficients:
+  `RollingOLS` over `window` (unset: a third of the sample, at least 2k),
+  charted, not gated.
+- **Back-test:** `dz.evaluation.evaluate` with the configured splitter
+  (default `expanding`, `horizon` 4), MAE, RMSE, MASE and the coverage of
+  the `level` (0.95) interval, which must be at least `min_coverage` (0.8).
+- **Sensitivity**, one at a time from the base scenario (`base`, unset: the
+  mildest; without scenarios, the drivers held at their last values): a
+  `shock` (1) added to a driver's column as the model takes it (after its
+  transform and lag) at every horizon, in standard deviations of that
+  column (`scale: sd`, the default) or in its units (`unit`); and each
+  driver's path in every other scenario alone, then all of them. Responses
+  are on the model's scale and on the target's (through its chain, with
+  no bias correction). The horizon is `horizon`, else forecast's, else the
+  scenarios' common coverage. Not gated.
+- **Anomalies:** the observations outside fitted ± z·s, z the normal
+  quantile of `level` (0.99) and s the model's `sigma2` where it estimates
+  one, else the residual standard error with the parameters as degrees of
+  freedom; a value on a bound is inside. Their share must be at most
+  `max_share` (0.05).
+- **Artefacts:** `T8.1` diagnostics (applicable tests with their status;
+  the others in its notes with their reasons), `T8.2` sensitivity, `T8.3`
+  anomalies, `T8.4` back-test scores by horizon, `T8.5` the gate, `F8.1`
+  residuals with the anomaly interval, `F8.2` the recursive CUSUM with its
+  bounds, `F8.3` rolling driver coefficients (one figure each, as D28 and
+  D31 chose; `F8.2` and `F8.3` only for an OLS model), `S8.1` the finding
+  (`diagnose.summary`).
+- The example project's `config/diagnose.yaml` accepts RESET's failure
+  (p ≈ 0.03 on the made-up series) by an override with its reason.
+
 ### 7.9 `adjust` (optional): adjustments and margins
 
 - Adjustments correct an identified bias and may go either way.
@@ -1314,7 +1375,10 @@ Each statistical result needs an oracle, not just a passing run.
   scenarios) (2026-11-25). Stage 9 adds `ForecastError` (the chosen model
   cannot be forecast as configured: no chosen model, no scenarios, a
   horizon the scenarios do not cover, a correction the chain does not
-  take) (2026-11-25).
+  take) (2026-11-25). Stage 10 adds `DiagnoseError` (the chosen model
+  cannot be diagnosed as configured: no chosen model, another dataset or
+  forecast, a back-test the sample cannot hold, a base scenario or horizon
+  the scenarios do not have) (2026-11-25).
 - **D18.** Registry: `Registry(kind, protocol=None)`, `@registry.register(key)`
   and `registry.add(key, obj)`; keys are non-empty strings registered once
   (`DuplicateKeyError`); a component lacking a protocol member is refused;
@@ -1359,7 +1423,9 @@ Each statistical result needs an oracle, not just a passing run.
   `StepInputs.require` and `Pipeline.run(seed=...)` (2026-11-25). Stage 9
   adds `dz.forecast` (the step module, with `adjustment`, `revert` and
   `back_transform`), `dz.readers.read_scenarios` and
-  `dz.readers.ScenarioInput`, and `dz.ForecastError` (2026-11-25).
+  `dz.readers.ScenarioInput`, and `dz.ForecastError` (2026-11-25). Stage 10
+  adds `dz.diagnose` (the step module, with `chow`, `anomalies`,
+  `residual_tests` and `default_lags`) and `dz.DiagnoseError` (2026-11-25).
 - **D21.** Artefact identifiers: `T`, `F` and `S` (findings) with the §7
   step number and a number declared per artefact in `ArtefactIds`;
   `StepResult.artefacts` is sorted by identifier (2026-11-25, Stage 2:
@@ -1582,6 +1648,27 @@ Each statistical result needs an oracle, not just a passing run.
   horizons, which only paths capture; common random numbers keep the
   scenarios' order free of simulation noise; one setting for scenarios and
   for bounds, as D33 asks, and steps import no other step).
+
+- **D42.** Diagnose runs the regression-based tests on a statsmodels OLS of
+  the chosen design and only for the `ols` form, recording every other
+  test as not applicable with its reason and outside the gate; reads every
+  test as one threshold check from configuration; tests Chow at
+  configured breaks or at fixed fractions of the sample (the middle by
+  default) rather than at a date the data suggest; takes the CUSUM bounds
+  from Brown, Durbin and Evans' table; back-tests through
+  `dz.evaluation.evaluate`; shocks a driver's model column by one standard
+  deviation by default; and flags anomalies outside fitted ± z·s at 99%
+  (2026-11-25, Stage 10: BG, RESET and the recursive tests need an OLS
+  result and the others assume one, and a test run on a form it does not
+  describe would fail or pass for the wrong reason; a break date chosen by
+  looking at the data makes the Chow F a sup-F, whose p-value the F
+  distribution does not give, and one fixed date keeps the gate's size at
+  alpha; statsmodels' private bound function uses 0.950 for 10%, where the
+  table has 0.850; select and segment already share `evaluate`, so a second
+  back-test loop would drift from it; a standard deviation makes drivers in
+  different units comparable, and a unit shock, the coefficient, is one
+  setting away; at 99% a well-specified model flags about one observation
+  in a hundred, well under the 5% maximum).
 
 ## 15 Build order
 
