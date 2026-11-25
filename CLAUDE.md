@@ -38,6 +38,9 @@ unexecuted Get started page.
 `pyproject.toml`, `uv.lock`, one test and the CI workflow. No library code
 yet.
 
+2026-11-25, Stage 1: `src/dazflow/core/` (Dataset, Config, Check, Gate,
+Override, Finding, StepResult, Registry, errors) and `dazflow.testing`.
+
 ## Versions and dependents
 
 `v0.1.0` issue: see the roadmap header. Dependents: none.
@@ -77,6 +80,13 @@ every other job when a pull request touches only `*.md` files or
 To be written as stages land; see `.agents/design.md` §4 for the layers
 (core, components, steps, pipeline, front ends) and the package layout.
 
+- `core/_model.py`: `DazflowModel`, the frozen pydantic base that turns
+  `ValidationError` into the model's `DazflowError` subclass. New core
+  objects subclass it and set `_error` and `_hint`.
+- `core/dataset.py`: `Dataset` is a plain class (pandas frames are not
+  pydantic fields); the fingerprint's canonical form is design §5.1.1.
+  Changing what it hashes means a new format and new stored hashes.
+
 ## Invariants that are easy to break
 
 All are fixed by the design; each breaks a promise the package makes.
@@ -103,8 +113,10 @@ All are fixed by the design; each breaks a promise the package makes.
 
 ## Testing
 
-None yet. The design's §13 lists the oracles each result needs, and a
-public contract suite, `dazflow.testing`, that every component passes.
+The design's §13 lists the oracles each result needs, and a public
+contract suite, `dazflow.testing`, that every component passes. Tests live
+under `tests/<package>/`. `tests/core/test_fingerprint.py` holds stored
+SHA-256 values that every full-profile leg must reproduce.
 
 ## Continuous integration
 

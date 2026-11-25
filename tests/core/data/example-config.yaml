@@ -1,0 +1,17 @@
+target: loss_rate
+drivers:
+- gdp
+- unemployment
+transform: logit
+max_lag: 8
+alpha: 0.1
+seasonal: true
+window:
+  start: 2005Q1
+  end: null
+weights:
+  gdp: 0.75
+  unemployment: 0.25
+overrides:
+- check: adf_loss_rate
+  reason: Short sample after the 2015 definition change; see section 4.2.

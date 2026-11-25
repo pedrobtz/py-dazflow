@@ -146,13 +146,15 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           python-version: "3.13"
+      # `uv run` installs no extra unless asked; `--exact` also removes any
+      # package a previous sync left behind, so the environment is core + dev.
       - name: No extra is installed
         run: >-
-          uv run --frozen --no-extras python -c
+          uv run --frozen --exact python -c
           "import importlib.util as u, sys;
           found = [m for m in ('openpyxl', 'pyarrow', 'polars', 'sqlalchemy', 'sklearn', 'xarray', 'xlsxwriter') if u.find_spec(m)];
           print('extras found:', found); sys.exit(bool(found))"
-      - run: uv run --frozen --no-extras pytest
+      - run: uv run --frozen --exact pytest
 
   package:
     needs: changes

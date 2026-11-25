@@ -181,6 +181,62 @@ changes data returns a new `Dataset`.
 - `log`: every change made to the data (exclusion, fill, outlier
   treatment, alignment), with its reason and the rows affected.
 - `fingerprint()`: a SHA-256 of the frame and metadata, for provenance.
+  Its canonical form is in §5.1.1 (D16).
+
+Validation (2026-11-25, Stage 1): column names are non-empty unique
+strings; values are float, integer, boolean or string (anything else is
+refused, so the canonical form covers every column); the index is unique
+and sorted; segment and scenario labels are strings or integers. Index
+levels are renamed `period`, `(segment, period)` and `(scenario, period)`.
+Scenario columns are dataset columns, at the dataset's frequency, and
+`severity` lists every scenario label once, mildest first (default: order
+of first appearance). Immutability is by copying: the constructor copies
+the frames, `frame` and `scenarios` return copies, and the `with_frame`,
+`with_series`, `with_scenarios`, `with_log` and `select` methods return
+new datasets (pandas 2.2 has no copy-on-write by default, so a shared
+view would leak changes).
+
+#### 5.1.1 Fingerprint canonical form
+
+Decided 2026-11-25 (Stage 1, D16). `fingerprint()` is the lowercase hex
+SHA-256 of one JSON document, serialised with sorted keys, separators
+`,` and `:`, ASCII only (`\uXXXX` escapes, as Python's `json` writes
+them), no NaN or infinity literals, and encoded as ASCII bytes. The
+document is, for format `dazflow.dataset/1`:
+
+```text
+{"columns":   [column, ...]            in frame column order
+ "format":    "dazflow.dataset/1",
+ "index":     {"kind": "period" | "panel", "rows": [row, ...]},
+ "scenarios": null | {"columns": [column without meta, ...],
+                      "rows": [[label, period], ...],
+                      "severity": [label, ...]}}
+column = {"kind": "float" | "int" | "bool" | "string",
+          "meta": {"expected_sign", "frequency", "role", "source",
+                   "transforms": [...], "unit"},   (null when unset)
+          "name": str, "values": [value, ...]}
+row    = period                 (kind "period")
+       | [segment, period]      (kind "panel")
+period = "<start>/<start of next period>", each
+         YYYY-MM-DDTHH:MM:SS.nnnnnnnnn written from the timestamp fields
+value  = null for a missing value (NaN, None, pd.NA), else by kind:
+         float: 16 lowercase hex digits of the IEEE-754 binary64 value,
+                big-endian, with -0.0 written as 0.0
+         int: a JSON integer; bool: true/false; string: a JSON string
+label  = a JSON string or integer
+```
+
+Every byte is written by `dazflow` from values, never from a library's
+text form: no pickle, no `hash_pandas_object`, no float `repr`, no
+frequency alias (`Q-DEC` and `A-DEC`/`Y-DEC` spellings differ across
+pandas versions; a period's start and end dates do not). Row and column
+order count; index names and dtypes within a kind (object strings and
+`StringDtype`, `int64` and `Int64`) do not. The log is left out: two
+datasets with the same data, metadata and scenarios have the same
+fingerprint however they were reached, and the log is recorded in the run
+record beside it. A change to this form is a new `format` value and new
+stored hashes in `tests/core/test_fingerprint.py`, never an edit of the
+old ones.
 
 pandas is the internal format because statsmodels, arch and most of the
 ecosystem take it. Readers accept polars and pyarrow input through
@@ -199,6 +255,20 @@ shared fields:
 - `config`: the configuration as run, defaults filled in.
 - `to_dict()`: a JSON-safe form for the run record and `--json`.
 
+Settled 2026-11-25 (Stage 1, D17). A `Check` passes when
+`observed <op> threshold`, `op` one of `<`, `<=`, `>`, `>=`; the threshold
+is finite, and a NaN observed value fails. Its `status` is `pass`, `fail`
+or `overridden` (failed, with an `Override(check=..., reason=...)` whose
+reason is not blank). `Gate.evaluate(checks, overrides)` attaches overrides
+by check name and refuses one naming no check; an override of a passing
+check is kept and changes nothing. A `Finding` is a jinja2 template
+(sandboxed, undefined fields are errors) and `values` that are booleans,
+integers, finite floats or strings; its `text` is rendered when it is made.
+`to_dict()` is the pydantic JSON dump with non-finite floats as the
+strings `"NaN"`, `"Infinity"`, `"-Infinity"` (strict JSON), and
+`from_dict()` on the same subclass rebuilds an equal result. Until Stage 2
+adds `Table` and `Figure`, `artefacts` holds `Finding`s only.
+
 ### 5.3 Fitted models
 
 A fitted model is stored as its specification, parameters, covariance
@@ -210,7 +280,13 @@ Replay and version loading refit and compare (§10).
 Every component kind is a `typing.Protocol` with a registry. Built-ins
 register themselves. Users register theirs with a decorator, and
 third-party packages through the `dazflow.plugins` entry-point group,
-which is loaded on first use. Configuration names a component by its
+which is loaded on first use. Each entry point names a module
+(`name = package.module`, or `package.module:attr`); loading imports it,
+and its decorators register its components. Each registry loads the group
+on its first lookup; a plugin that fails to import raises `PluginError`
+naming the distribution, at every lookup until it is fixed (2026-11-25,
+Stage 1, D18: one group for every kind, so a plugin registers in several
+registries from one import). Configuration names a component by its
 registry key, so a plugin model is chosen in YAML exactly like a
 built-in one.
 
@@ -653,6 +729,36 @@ Each statistical result needs an oracle, not just a passing run.
   python-docx 1.1.2, matplotlib 3.8.4, jinja2 3.1.4, typer 0.12.3, rich
   13.7 (2026-11-25, Stage 0: the full profile's lowest-direct job tests
   them; raise one only when a stage needs a newer feature, with a reason).
+  pydantic raised to 2.8 (2026-11-25, Stage 1: `ser_json_inf_nan="strings"`,
+  which `StepResult.to_dict()` needs for NaN and infinite check values,
+  arrived in 2.8).
+- **D16.** The dataset fingerprint is the SHA-256 of the canonical JSON
+  form in §5.1.1, written value by value, without the log (2026-11-25,
+  Stage 1: identical across platforms, Python 3.12–3.14 and the lowest
+  pandas and numpy, which the full profile checks on every leg).
+- **D17.** Core objects other than `Dataset` are frozen pydantic models
+  that refuse unknown fields; their validation errors are `DazflowError`
+  subclasses (`ConfigError`, `DatasetError`, `GateError`, `FindingError`,
+  `ResultError`), with a nested object's error reported by the outermost
+  object. `DazflowError(problem, *, observed, change)` renders as three
+  lines (2026-11-25, Stage 1: §4's classed-error rule, and one error type
+  per object for callers to catch).
+- **D18.** Registry: `Registry(kind, protocol=None)`, `@registry.register(key)`
+  and `registry.add(key, obj)`; keys are non-empty strings registered once
+  (`DuplicateKeyError`); a component lacking a protocol member is refused;
+  `registry.get(key)` / `registry[key]` raise `UnknownKeyError` with
+  `known`, the sorted keys. Entry points as in §6 (2026-11-25, Stage 1).
+- **D19.** `Config`: `from_yaml(text)`, `load(path)`, `to_yaml()`,
+  `dump(path)` and `json_schema()` (draft 2020-12, with `$schema`). YAML is
+  read with PyYAML's safe loader, refusing repeated keys; dumped with
+  fields in declaration order and every default filled in; non-finite
+  floats are refused so YAML, JSON and the schema agree (2026-11-25,
+  Stage 1).
+- **D20.** Public names: `import dazflow as dz` exposes the core objects
+  and errors at the top level (`dz.Dataset`, `dz.Config`, `dz.Gate`,
+  `dz.DazflowError`, ...) and as `dz.core`; `dazflow.testing` holds
+  `ComponentContract`, which a plugin's tests subclass with `registry` and
+  `key` (2026-11-25, Stage 1).
 
 ## 15 Build order
 
