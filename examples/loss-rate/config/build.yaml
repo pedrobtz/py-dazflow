@@ -1,0 +1,46 @@
+# build: driver combinations and forms, simplest first, within the declared signs
+# (design §7.4). A candidate's check is overridden as '<candidate>/<check>'.
+
+# The target; unset: explore's target, else the dataset's one target.
+target: null
+# The drivers searched, in this order; unset: those explore kept, else the dataset's drivers.
+drivers: null
+# Expected sign by driver; replaces explore's and the metadata. 0: no check.
+expected_signs: {}
+# Lag by driver, in periods; replaces explore's lags.
+lags: {}
+# Every combination up to max_size, or forward stepwise by the criterion.
+search: exhaustive
+# Most drivers in a candidate.
+max_size: 2
+# Stepwise: the information criterion of an OLS fit that adds a driver.
+criterion: aic
+# Pairs of drivers never in one candidate: [[a, b]].
+exclusions: []
+# Forms with drivers, simplest first; the next is fitted only when the simpler one fails a check.
+forms:
+  - form: ols
+    config:
+      cov_type: HAC
+  - form: arimax
+    config:
+      order:
+      - 1
+      - 0
+      - 0
+# Forms without drivers, always fitted.
+benchmarks:
+  - form: naive
+    config: {}
+  - form: mean
+    config: {}
+# A driver's coefficient needs a p-value at most this.
+significance: 0.05
+# Largest accepted VIF of a candidate's drivers.
+max_vif: 10.0
+# A linear trend term: auto adds one when the target or a driver is trend-stationary and kept in levels (explore's trend_stationary: keep).
+trend: auto
+# Fewest candidates that must pass every check.
+min_candidates: 1
+# Accepted failed checks, with reasons; a candidate's check is '<candidate>/<check>', as in ols:gdp/significance:gdp.
+overrides: []

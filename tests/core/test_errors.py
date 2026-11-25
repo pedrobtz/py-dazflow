@@ -20,6 +20,8 @@ CLASSES = [
     errors.RecordError,
     errors.ModelError,
     errors.EvaluationError,
+    errors.BuildError,
+    errors.SelectError,
 ]
 
 

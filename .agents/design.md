@@ -676,6 +676,60 @@ candidate table, coefficient chart per candidate.
 penalised regression; optional statsforecast for fast ARIMA and ETS
 order search.
 
+Settled 2026-11-25 (Stage 8, D39). `dz.build.run(dataset, config,
+*, explore=None)` takes the series in levels, as explore received them
+(their fingerprint must be explore's `input_fingerprint`), and explore's
+result, which gives the target, the kept drivers in order, their lags and
+expected signs, each series' resolved chain and its kind of integration;
+`config` replaces any of them. Without explore the series are used as they
+are, at lag 0. The caller's dataset is not changed.
+
+- **Design.** A candidate's data come from `dz.models.Design`: the target
+  and drivers transformed by their chains (`transforms.forward` on the
+  recorded text), each driver shifted by its lag, a `trend` column when
+  needed, on one sample. Select rebuilds every candidate's data through
+  the same `Design.frames(levels)`, and `Design.future(levels, paths, h)`
+  builds the drivers after the sample from their future paths in levels.
+- **One sample.** Every candidate and benchmark is fitted on the common
+  sample, the periods where the target and every searched driver at its
+  lag are present, so information criteria and rolling-origin folds
+  compare; a gap inside it is a `BuildError`.
+- **Search.** `combinations(drivers, max_size, exclusions)` lists every set
+  of 1 to `max_size` drivers holding no excluded pair, by size and then in
+  driver order; `stepwise` adds, each step, the driver whose OLS fit has
+  the lowest AIC (or BIC), skipping excluded pairs, until `max_size` or no
+  improvement. "Within the signs" is the sign check below: a set is not
+  pruned before fitting.
+- **Forms.** `forms` (default `ols` with HAC errors, then `arimax`
+  (1,0,0), regression with AR(1) errors) are tried in order for each set;
+  the next is fitted only when the simpler one fails a check, so a set
+  yields one passing candidate or every failed attempt. `benchmarks`
+  (default `naive`, `mean`) are always fitted. A form that cannot be
+  fitted (`ModelError`) is recorded with its error and the next is tried.
+- **Checks** (per candidate, `Candidate.gate`): `sign:<driver>`
+  (coefficient times expected sign > 0, for a sign of -1 or 1),
+  `significance:<driver>` (p <= `significance`, 0.05) and `vif` (largest
+  VIF of its drivers <= `max_vif`, 10). Only driver coefficients are
+  checked; the constant, the trend and a form's own parameters (`ar.L1`,
+  `sigma2`) are reported. p-values are two-sided normal from `params` and
+  `cov_params`, for every form: statsmodels' own for OLS with HAC (the
+  default), GLM and ARIMAX. A candidate's check is overridden as
+  `<candidate>/<check>` (`ols:gdp/significance:gdp`). The step's gate is
+  `candidates`: at least `min_candidates` (1) candidates pass.
+- **Trend terms.** Under `trend: auto`, a candidate gets a linear trend
+  column (`trend`, 1 at the dataset's first period) when its target or a
+  driver is trend-stationary and kept in levels (explore's
+  `trend_stationary: keep`); `always` and `never` force it.
+- **VIF** is `1 / (1 - R²)` of each driver on a constant and the others,
+  equal to statsmodels' `variance_inflation_factor` on a design with a
+  constant.
+- **Artefacts:** `T4.1` correlation and VIF of the drivers, `T4.2`
+  candidates, `T4.3` coefficients, `T4.4` the gate, `F4.1` every
+  candidate's driver coefficients as z statistics in one figure (no
+  coefficient, no figure), `S4.1` the finding (`build.summary`).
+- Systems (VAR, VECM), cointegration and penalised regression are not
+  built in 0.1.0 (open question 3, After 0.1.0).
+
 ### 7.5 `segment` (optional): one model or several
 
 - Compare a pooled model, a pooled model with segment effects, and one
@@ -705,6 +759,68 @@ back-test and scenario charts per candidate, selection record.
 **Packages:** scikit-learn `TimeSeriesSplit` or own splitters; arch
 `bootstrap.MCS` and `SPA`; statsmodels information criteria; optional
 dieboldmariano.
+
+Settled 2026-11-25 (Stage 8, D38, D40). `dz.select.run(dataset, config,
+*, build, seed=None)` takes the series in levels that build ran on (its
+fingerprint, scenarios left out, must be build's) with any scenarios in
+`dataset.scenarios`, or read from `config.scenarios`, and build's result.
+
+- **Scores.** Every candidate and benchmark with a fit is evaluated by
+  `dz.evaluation.evaluate` on its `Design.frames` (splitter `expanding`,
+  half the sample first, one-step folds by default). Its scaled error is
+  its RMSE over the `benchmark`'s (default `mean`: on the stationary series
+  build fits, the historic mean is the no-information forecast), or the
+  MAE ratio with `loss: absolute`. A candidate beats the benchmark below
+  `benchmark_ratio` (1).
+- **Folds too short.** A candidate whose form cannot be fitted at an origin
+  (`ModelError`, for example a first window shorter than an ARIMAX needs)
+  is not scored, not in the confidence set and not chosen; the ranking
+  and evaluation tables give the error. Skipping only that origin would
+  give the candidates different origins and so no common loss matrix. The
+  benchmark failing so is a `SelectError`.
+- **Confidence set.** `confidence_set(losses, ...)` is
+  `arch.bootstrap.MCS(losses, size, reps, block_size, method, bootstrap,
+  seed=seed).compute()` on the per-origin losses (mean squared or absolute
+  error of each fold) of every scored model, benchmarks included; `mcs`
+  configures it (size 0.10, 1000 replications, method R, stationary
+  bootstrap). The seed is `mcs.seed`, else project.yaml's `seed` (passed
+  through `StepInputs.seed`), else 0, so a run repeats.
+- **Scenarios.** Each scored model is refitted from its record
+  (`models.refit`, which checks the data's fingerprint) and forecast under
+  every scenario, its drivers built by `Design.future` from the scenario's
+  paths in levels for the periods after the sample; the mean path is
+  mapped back to the target's levels by `transforms.inverse` with the
+  observed history (no bias correction: that is forecast's, §7.7). A
+  model's `ordering.statistic` (mean) of each path is compared across
+  scenarios, mildest first: a pair of successive scenarios is out of order
+  when the more severe one projects a lower value (`direction: 1`) or a
+  higher one (`-1`); equal values are not out of order, since scenarios
+  with the same paths for a model's drivers give equal projections.
+  `bounds` counts projected values outside `[lower, upper]`.
+- **Choice** (D38). `choice: {candidate, reason}` confirms the proposal or
+  overrides it; the reason is required and not blank. Without it the
+  proposal is used and `decision` is `proposed`. Benchmarks are compared,
+  never chosen.
+- **Gate:** `confidence-set` (at least one candidate that passes every
+  check is in the set) and, for the chosen model, `build` (its build
+  checks that failed and were not overridden: 0), `benchmark` (scaled
+  error < `benchmark_ratio`), `scenario-order` (with two or more
+  scenarios) and `scenario-bounds` (with bounds).
+- **Artefacts:** `T6.1` ranking, `T6.2` rolling-origin evaluation, `T6.3`
+  projections by scenario, `T6.4` selection record, `T6.5` the gate,
+  `F6.1` the one-step back-test of every scored model in one figure,
+  `F6.2` the chosen model's projection under each scenario (no choice or
+  no scenario, no figure), `S6.1` the finding (`select.summary`, or
+  `select.empty` when nothing is proposed). The design's "back-test and
+  scenario charts per candidate" are one figure each, as explore and
+  ingest chose (D28, D31); every candidate's projections are in `T6.3`.
+- The result holds what forecast (Stage 9) needs: `chosen`, its `record`
+  (`ModelRecord`), `design` (drivers, lags, chains, trend), `drivers`, and
+  `scenario_forecasts` (every scored model under every scenario: the
+  `Forecast` on the transformed scale and its mean path in levels).
+- Arch's `SPA`, statsmodels' information criteria in the ranking and
+  dieboldmariano are not used in 0.1.0: the confidence set answers
+  whether candidates are distinguishable.
 
 ### 7.7 `forecast`: projection and calibration
 
@@ -784,7 +900,9 @@ not a Python package) for HTML and PDF.
   target, drivers, expected signs and frequency stay in
   `config/ingest.yaml`, where Stage 3 put them and where every later step
   reads them from the series metadata: one place per setting. Segments and
-  scenarios come after 0.1.0.
+  scenarios come after 0.1.0. Scenarios are read by select from
+  `config/select.yaml: scenarios` (a CSV of driver paths in levels), or
+  passed in memory as `Dataset.scenarios` (2026-11-25, Stage 8, D40).
 - Defaults are filled in and written to the run record, so a record
   never depends on the library's defaults at replay time.
 - Decisions live in configuration: shortlist, chosen model, treatments,
@@ -1125,7 +1243,11 @@ Each statistical result needs an oracle, not just a passing run.
   (2026-11-25). Stage 7 adds `ModelError` (a form cannot be fitted,
   predicted or refitted as asked, such as missing values, refused drivers
   or data with another fingerprint) and `EvaluationError` (a splitter,
-  metric or evaluation cannot run as configured) (2026-11-25).
+  metric or evaluation cannot run as configured) (2026-11-25). Stage 8
+  adds `BuildError` (candidates cannot be built as configured: unknown
+  drivers or forms, no common sample) and `SelectError` (candidates cannot
+  be ranked or chosen as configured: the benchmark, the choice, the
+  scenarios) (2026-11-25).
 - **D18.** Registry: `Registry(kind, protocol=None)`, `@registry.register(key)`
   and `registry.add(key, obj)`; keys are non-empty strings registered once
   (`DuplicateKeyError`); a component lacking a protocol member is refused;
@@ -1164,6 +1286,10 @@ Each statistical result needs an oracle, not just a passing run.
   (`splitters`, `metrics`, `Fold`, `evaluate`, `Evaluation`, the built-in
   classes), `dz.ModelError`, `dz.EvaluationError`, and in
   `dazflow.testing` the `ModelContract` and `sample_series` (2026-11-25).
+  Stage 8 adds `dz.build` and `dz.select` (the step modules), `dz.models.Design`
+  and `dz.models.TREND`, `dz.BuildError` and `dz.SelectError`, and in
+  `dz.pipeline` `StepInputs.seed`, `StepInputs.dataset_with`,
+  `StepInputs.require` and `Pipeline.run(seed=...)` (2026-11-25).
 - **D21.** Artefact identifiers: `T`, `F` and `S` (findings) with the §7
   step number and a number declared per artefact in `ArtefactIds`;
   `StepResult.artefacts` is sorted by identifier (2026-11-25, Stage 2:
@@ -1330,6 +1456,47 @@ Each statistical result needs an oracle, not just a passing run.
   result crossing a step boundary holds no third-party object). Folds
   with a partial horizon are not made, so every horizon is scored on the
   same origins.
+- **D38.** The default selection rule: among the candidates that pass every
+  check (build's sign, significance and VIF checks, and select's benchmark,
+  scenario-order and bounds checks), take those in arch's model confidence
+  set (`arch.bootstrap.MCS`) at a configured size, default 0.10; choose the
+  one with the fewest drivers, breaking ties by the lowest
+  benchmark-scaled error (then by build's order). If no candidate that
+  passes every check is in the set, the finding says so, nothing is
+  proposed and the `confidence-set` check fails. The modeller confirms the
+  proposal or overrides it in configuration (`choice: {candidate,
+  reason}`), with a required reason. The bootstrap is seeded from the step
+  configuration (`mcs.seed`) or `project.yaml: seed`, so a run repeats
+  (2026-11-25, Stage 8: settles open question 6 as the maintainer decided
+  it; the confidence set replaces "within a configured tolerance", which
+  had no definition, with a test of which candidates the data cannot tell
+  apart, and parsimony then picks among those).
+- **D39.** Build takes the series in levels with explore's result and
+  fits every candidate on one common sample through `models.Design`, which
+  select reuses; forms are tried in configured order per driver set, the
+  next only when the simpler fails; only driver coefficients are gated,
+  with two-sided normal p-values from the parameters and their covariance;
+  a trend-stationary series kept in levels gives its candidates a linear
+  `trend` column (2026-11-25, Stage 8: one function building a candidate's
+  data keeps the fitted, evaluated and forecast matrices identical, which
+  `models.refit`'s fingerprint check then confirms; a common sample makes
+  the rolling-origin folds and the confidence set's loss matrix line up;
+  a deterministic term has no expected sign, and explore's open point left
+  the trend term to build).
+- **D40.** Select scores every fitted model on the same folds, drops a
+  candidate that cannot be fitted at some origin (with its error) rather
+  than that origin, scales errors by a benchmark (default `mean`), reads
+  scenarios from `config/select.yaml: scenarios` when the dataset has none,
+  maps projections to the target's levels by the recorded chain, and
+  counts a tie between scenarios as in order (2026-11-25, Stage 8: a
+  dropped origin would leave candidates with different origins and no
+  common loss matrix; on the stationary series build fits, the mean is the
+  no-information forecast, and in levels it is a random walk with drift;
+  §8 keeps scenarios out of `project.yaml` for 0.1.0 and ingest has no
+  scenario input, so the step that first uses them reads them; equal
+  driver paths give equal projections, which are not out of order). The
+  example project's `data/raw/scenarios.csv` holds illustrative paths
+  written for the example data, not a published scenario.
 
 ## 15 Build order
 
@@ -1357,7 +1524,8 @@ command line, then MCP server, then forms interface.
    `explore` on, not only after `build`.
 5. **Monitoring.** Anomaly checks appear in `clean` and `diagnose`.
    Monitoring could become its own step.
-6. **Default selection rule.** An exact definition of "within a
-   configured tolerance".
+6. **Default selection rule.** Settled by D38: the candidates that pass
+   every check and are in arch's model confidence set, then the fewest
+   drivers, then the lowest benchmark-scaled error.
 7. **Panel data shape.** Settled by D13: a `(segment, period)`
    MultiIndex in one frame.

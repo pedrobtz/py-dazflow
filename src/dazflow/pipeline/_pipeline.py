@@ -29,7 +29,7 @@ from dazflow.readers._base import ReadSpec
 __all__ = ["DEFAULT_STEPS", "Pipeline", "Run"]
 
 # The 0.1.0 steps built so far, in design §7 order.
-DEFAULT_STEPS: tuple[str, ...] = ("ingest", "clean", "explore")
+DEFAULT_STEPS: tuple[str, ...] = ("ingest", "clean", "explore", "build", "select")
 
 
 def _now() -> str:
@@ -233,6 +233,7 @@ class Pipeline:
         earlier: Mapping[str, StepResult] | None = None,
         earlier_configs: Mapping[str, Config | Mapping[str, Any]] | None = None,
         earlier_record: RunRecord | None = None,
+        seed: int | None = None,
     ) -> Run:
         """Run the steps from `start` to `stop`. Prints nothing and writes no files.
 
@@ -242,7 +243,8 @@ class Pipeline:
         the previous data vintage for clean's revisions check: a `Dataset`, or
         a `ReadSpec` read from `root`. A run that starts after the first step
         needs the earlier steps' results in `earlier` (with their datasets),
-        and their configurations in `earlier_configs`.
+        and their configurations in `earlier_configs`. `seed` is passed to
+        every step's adapter for the step's random draws (``project.yaml: seed``).
         """
         configs = dict(configs or {})
         unknown = sorted(set(configs) - set(self._steps))
@@ -283,6 +285,7 @@ class Pipeline:
                 root=root,
                 data=data,
                 previous=vintage,
+                seed=seed,
             )
             adapter = self._adapters.get(name) if name in self._adapters else default_adapter
             result = adapter(self.step(name), cfg, ctx)

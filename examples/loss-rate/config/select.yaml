@@ -1,0 +1,51 @@
+# select: rolling-origin scores, the model confidence set, scenarios and the default
+# rule (design §7.6). Confirm or override the proposal in choice, with a reason.
+# data/raw/scenarios.csv holds illustrative driver paths written for the example data,
+# not a published scenario.
+
+# The benchmark (one build fitted) whose errors scale every other's.
+benchmark: mean
+# Rolling-origin splitter, by registry key.
+splitter: expanding
+# The splitter's settings; unset: half the sample first, one-step folds.
+splitter_config: {}
+# Per-origin loss: squared (RMSE ratios) or absolute (MAE ratios).
+loss: squared
+# Interval levels forecast.
+levels: [0.8, 0.95]
+# A candidate beats the benchmark with a scaled error below this.
+benchmark_ratio: 1.0
+mcs:
+  # Size of the set's test: the set holds the best at 1 - size.
+  size: 0.1
+  # Bootstrap replications.
+  reps: 1000
+  # Bootstrap block length; unset: arch's default.
+  block_size: null
+  # arch's elimination statistic.
+  method: R
+  bootstrap: stationary
+  # Bootstrap seed; unset: project.yaml's seed (0 outside a project).
+  seed: null
+# Scenario paths read from a file; unset: the dataset's own scenarios.
+scenarios:
+  # The file, relative to the project folder.
+  path: data/raw/scenarios.csv
+  # The column holding the scenario labels.
+  scenario: scenario
+  # The column holding the dates; unset: the first other column.
+  date: null
+  # Unset: read from the dates.
+  frequency: null
+  # Scenario labels, mildest first; unset: their order in the file.
+  severity: [baseline, adverse, severe]
+ordering:
+  # What of each projection, in levels, is compared.
+  statistic: mean
+  # 1: a more severe scenario projects a higher target; -1: a lower one.
+  direction: 1
+# [lower, upper] for every projection in the target's levels; null leaves a side open; unset: no bounds check.
+bounds: [0.0, 100.0]
+# Confirm the proposal or choose another: {candidate: ..., reason: ...}.
+choice: null
+overrides: []

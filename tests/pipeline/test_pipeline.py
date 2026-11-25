@@ -18,12 +18,16 @@ from dazflow.steps import Step, clean, explore, ingest
 
 
 def test_the_default_pipeline_is_the_built_steps():
-    assert Pipeline().steps == DEFAULT_STEPS == ("ingest", "clean", "explore")
+    assert Pipeline().steps == DEFAULT_STEPS == ("ingest", "clean", "explore", "build", "select")
 
 
 @pytest.mark.parametrize(
     ("steps", "match"),
-    [([], "no steps"), (["ingest", "ingest"], "more than once"), (["ingest", "build"], "build")],
+    [
+        ([], "no steps"),
+        (["ingest", "ingest"], "more than once"),
+        (["ingest", "forecast"], "forecast"),
+    ],
 )
 def test_a_pipeline_of_unknown_or_repeated_steps_is_refused(steps, match):
     with pytest.raises(dz.PipelineError, match=match):
@@ -33,7 +37,7 @@ def test_a_pipeline_of_unknown_or_repeated_steps_is_refused(steps, match):
 def test_select_takes_from_and_to_in_pipeline_order():
     p = Pipeline()
     assert p.select() == DEFAULT_STEPS
-    assert p.select("clean") == ("clean", "explore")
+    assert p.select("clean") == ("clean", "explore", "build", "select")
     assert p.select(None, "clean") == ("ingest", "clean")
     assert p.select("clean", "clean") == ("clean",)
     with pytest.raises(dz.PipelineError, match="comes after"):
@@ -137,9 +141,9 @@ def registries():
 def test_a_registered_step_runs_by_name_with_the_default_adapter(example, registries):
     steps, adapters = registries
     proj = dz.project.load(example)
-    run = Pipeline([*DEFAULT_STEPS, "count"], registry=steps, adapters=adapters).run(
-        proj.configs(), root=example
-    )
+    built = ("ingest", "clean", "explore")
+    configs = {k: v for k, v in proj.configs().items() if k in built}
+    run = Pipeline([*built, "count"], registry=steps, adapters=adapters).run(configs, root=example)
     assert run.results["count"].rows == len(run.results["explore"].dataset.frame)
     assert count.seen == [(run.results["explore"].fingerprint, ())]
     assert run.record().config["count"] == {"minimum": 1}
@@ -153,9 +157,9 @@ def test_an_adapter_passes_an_earlier_result_to_a_later_step(example, registries
         return step.run(inputs.require_dataset(), config, kept=inputs.results["explore"].kept)
 
     proj = dz.project.load(example)
-    run = Pipeline([*DEFAULT_STEPS, "count"], registry=steps, adapters=adapters).run(
-        proj.configs(), root=example
-    )
+    built = ("ingest", "clean", "explore")
+    configs = {k: v for k, v in proj.configs().items() if k in built}
+    run = Pipeline([*built, "count"], registry=steps, adapters=adapters).run(configs, root=example)
     assert (
         run.results["count"].kept == run.results["explore"].kept == ("gdp_growth", "unemployment")
     )
@@ -225,7 +229,7 @@ def test_a_step_that_returns_no_step_result_is_refused(registries):
 def test_a_previous_vintage_in_memory_is_fingerprinted(example):
     proj = dz.project.load(example)
     first = proj.run(stop="ingest").results["ingest"].dataset
-    configs = {k: v for k, v in proj.configs().items() if k != "explore"}
+    configs = {k: v for k, v in proj.configs().items() if k in ("ingest", "clean")}
     run = Pipeline(["ingest", "clean"]).run(configs, root=example, previous=first)
     (entry,) = [i for i in run.inputs if i.name == "previous"]
     assert (entry.kind, entry.fingerprint) == ("dataset", first.fingerprint())
@@ -246,3 +250,20 @@ def test_a_folder_input_is_hashed_by_its_files(tmp_path):
     first = file_sha256(tmp_path / "d")
     (tmp_path / "d" / "a.csv").write_bytes(b"2")
     assert file_sha256(tmp_path / "d") != first
+
+
+def test_select_needs_build_before_it(example):
+    proj = dz.project.load(example)
+    configs = {k: v for k, v in proj.configs().items() if k in ("ingest", "clean", "select")}
+    with pytest.raises(dz.PipelineError, match="needs the result of 'build'"):
+        Pipeline(["ingest", "clean", "select"]).run(configs, root=example)
+
+
+def test_build_without_explore_takes_the_latest_dataset(example):
+    proj = dz.project.load(example)
+    steps = ("ingest", "clean", "build", "select")
+    configs = {k: v for k, v in proj.configs().items() if k in steps}
+    run = Pipeline(steps).run(configs, root=example, seed=4)
+    assert run.results["build"].fingerprint == run.results["clean"].fingerprint
+    assert run.results["build"].chains == {"loss_rate": (), "gdp_growth": (), "unemployment": ()}
+    assert run.results["select"].seed == 4

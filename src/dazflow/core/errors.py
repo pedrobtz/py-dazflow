@@ -13,6 +13,7 @@ from __future__ import annotations
 
 __all__ = [
     "ArtefactError",
+    "BuildError",
     "CheckError",
     "CleanError",
     "ConfigError",
@@ -34,6 +35,7 @@ __all__ = [
     "RegistryError",
     "RenderError",
     "ResultError",
+    "SelectError",
     "TransformError",
     "UnknownKeyError",
 ]
@@ -143,6 +145,14 @@ class ModelError(DazflowError):
 
 class EvaluationError(DazflowError):
     """A splitter, metric or rolling-origin evaluation cannot run as configured."""
+
+
+class BuildError(DazflowError):
+    """Candidate models cannot be built as configured (unknown drivers or forms, no data)."""
+
+
+class SelectError(DazflowError):
+    """Candidates cannot be ranked or chosen as configured (benchmark, choice or scenarios)."""
 
 
 class PipelineError(DazflowError):

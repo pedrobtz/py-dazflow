@@ -431,7 +431,7 @@ class FittedModel:
         self._params = params.astype(float)
         self._cov = cov_params.astype(float)
         self._fitted = fitted_values.astype(float).rename("fitted")
-        self._data = fingerprint(y, X)
+        self._data: str | None = None  # computed on first use: refits at every origin skip it
         self.notes = tuple(notes)
 
     def __repr__(self) -> str:
@@ -462,6 +462,8 @@ class FittedModel:
 
     @property
     def data_fingerprint(self) -> str:
+        if self._data is None:
+            self._data = fingerprint(self._y, self._X)
         return self._data
 
     @property
@@ -476,7 +478,7 @@ class FittedModel:
         return ModelRecord(
             spec=self._spec,
             sample=self.sample,
-            data=self._data,
+            data=self.data_fingerprint,
             params={str(k): float(v) for k, v in self._params.items()},
             cov_params=tuple(tuple(float(v) for v in row) for row in self._cov.to_numpy()),
         )

@@ -58,7 +58,7 @@ checks something the stage introduces and later stages build on.
 | 5 | [Explore](#stage-5--explore) | quick | [#7](https://github.com/pedrobtz/py-dazflow/issues/7) | [#25](https://github.com/pedrobtz/py-dazflow/pull/25) | 2026-11-25 |
 | 6 | [Pipeline, record and command line](#stage-6--pipeline-record-and-command-line) | quick | [#8](https://github.com/pedrobtz/py-dazflow/issues/8) | [#26](https://github.com/pedrobtz/py-dazflow/pull/26) | 2026-11-25 |
 | 7 | [Model forms and evaluation](#stage-7--model-forms-and-evaluation) | full | [#9](https://github.com/pedrobtz/py-dazflow/issues/9) | [#27](https://github.com/pedrobtz/py-dazflow/pull/27) | 2026-11-25 |
-| 8 | [Build and select](#stage-8--build-and-select) | quick | [#10](https://github.com/pedrobtz/py-dazflow/issues/10) | | |
+| 8 | [Build and select](#stage-8--build-and-select) | quick | [#10](https://github.com/pedrobtz/py-dazflow/issues/10) | [#28](https://github.com/pedrobtz/py-dazflow/pull/28) | 2026-11-25 |
 | 9 | [Forecast](#stage-9--forecast) | quick | [#11](https://github.com/pedrobtz/py-dazflow/issues/11) | | |
 | 10 | [Diagnose](#stage-10--diagnose) | quick | [#12](https://github.com/pedrobtz/py-dazflow/issues/12) | | |
 | 11 | [Report and replay](#stage-11--report-and-replay) | quick | [#13](https://github.com/pedrobtz/py-dazflow/issues/13) | | |
@@ -556,6 +556,28 @@ confirm.
 **Design.** [§7.4](design.md#74-build-candidate-models),
 [§7.6](design.md#76-select-rank-and-choose).
 
+**As built** (2026-11-25). `dz.build.run(dataset, config, *, explore)` and
+`dz.select.run(dataset, config, *, build, seed)` take the series in
+levels, as explore received them, and the earlier results; a candidate's
+data come from `dz.models.Design`, which both steps share, on one common
+sample (D39). The default rule is the maintainer's decision of open
+question 6 (D38): the candidates that pass every check and are in arch's
+model confidence set at size 0.10, then the fewest drivers, then the
+lowest benchmark-scaled error; the modeller confirms or overrides it in
+`choice`, with a reason. The bootstrap seed is `mcs.seed` or
+`project.yaml: seed`, which the pipeline now passes to every adapter
+(`StepInputs.seed`). A candidate that cannot be fitted at an origin is
+dropped with its error, and a trend-stationary series kept in levels
+gives its candidates a `trend` column (D39, D40). Scenarios are read from
+`config/select.yaml: scenarios` (a CSV of driver paths in levels) when the
+dataset has none, so `examples/loss-rate` gains `data/raw/scenarios.csv`,
+illustrative paths written for the example (D40); `dazflow run` on it now
+runs through select, and the `package` job checks all five steps. The
+back-test and scenario charts are one figure each (`F6.1`, `F6.2`), as
+D28 and D31 chose. `FittedModel` computes its data fingerprint on first
+use, which halves a rolling-origin evaluation's time. No dependency
+changed.
+
 ## Stage 9 — Forecast
 
 **Issue.** [#11](https://github.com/pedrobtz/py-dazflow/issues/11), sub-issue of
@@ -844,7 +866,5 @@ No pull request closes this issue; it closes when both reviews are done.
 
 ## Blocking open questions
 
-- [§17](design.md#17-open-questions) question 6, the exact default
-  selection rule, blocks Stage 8.
 - The PyPI release needs a trusted publisher on PyPI (repository
   `pedrobtz/py-dazflow`, workflow `release.yml`, environment `pypi`).

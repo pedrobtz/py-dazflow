@@ -12,7 +12,8 @@ returns a `Fitted` model, whose `predict` returns a `Forecast`::
 Built-in keys: ``naive``, ``seasonal_naive``, ``mean``, ``ols``, ``glm``,
 ``arimax`` and ``ets``. A fitted model is stored as its `record()`
 (specification, parameters, covariance and the data fingerprint) and is
-rebuilt by `refit(record, y, X)`; it is never pickled (design §5.3).
+rebuilt by `refit(record, y, X)`; it is never pickled (design §5.3). A
+`Design` builds a candidate's target and drivers from the series in levels.
 """
 
 from dazflow.models import _builtin  # noqa: F401 - registers the built-ins
@@ -35,10 +36,13 @@ from dazflow.models._base import (
     season_length,
 )
 from dazflow.models._builtin import newey_west_lags
+from dazflow.models._design import TREND, Design
 
 __all__ = [
     "DEFAULT_LEVELS",
     "RECORD_FORMAT",
+    "TREND",
+    "Design",
     "Fitted",
     "FittedModel",
     "Forecast",

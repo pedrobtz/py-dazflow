@@ -45,8 +45,10 @@ def test_each_step_called_directly_writes_nothing(frozen):
     ing = dz.ingest.run(cfg)  # the path is relative to the working directory, the project
     cl = dz.clean.run(ing.dataset, proj.step_config("clean"))
     ex = dz.explore.run(cl.dataset, proj.step_config("explore"))
-    assert ex.gate.passed
-    for result in (ing, cl, ex):
+    b = dz.build.run(cl.dataset, proj.step_config("build"), explore=ex)
+    sel = dz.select.run(cl.dataset, proj.step_config("select"), build=b)  # reads the scenarios
+    assert ex.gate.passed and b.gate.passed and sel.gate.passed
+    for result in (ing, cl, ex, b, sel):
         result.to_dict()
     assert tree(frozen) == before
 
@@ -63,7 +65,7 @@ def test_a_pipeline_run_writes_nothing(frozen):
 def test_a_project_run_writes_nothing(frozen):
     before = tree(frozen)
     run = dz.project.load(frozen).run()
-    assert run.steps == ("ingest", "clean", "explore")
+    assert run.steps == ("ingest", "clean", "explore", "build", "select")
     assert tree(frozen) == before
 
 

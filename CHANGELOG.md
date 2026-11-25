@@ -2,6 +2,41 @@
 
 ## Unreleased
 
+- `dz.build`: the fourth step. It checks the drivers' correlation and
+  variance inflation, searches driver combinations up to a size
+  (exhaustively, or forward stepwise by AIC or BIC) without the excluded
+  pairs, and fits the configured forms simplest first for each set,
+  moving to the next form only when the simpler one fails a check: every
+  driver has its expected sign and a p-value at most the threshold, and no
+  VIF exceeds the limit. The benchmarks are always fitted, every candidate
+  on one common sample. A trend-stationary series kept in levels gives its
+  candidates a trend term. It returns the candidates with their stored
+  records, a correlation table, a candidate table, a coefficient table and
+  chart, and a finding. `combinations()`, `stepwise()` and `vif()` are
+  public. New error `BuildError`.
+- `dz.select`: the fifth step. It scores every candidate and benchmark by
+  rolling-origin evaluation, scales the errors by a benchmark's, computes
+  arch's model confidence set from a seeded bootstrap, forecasts each
+  candidate under every scenario (from `Dataset.scenarios` or a CSV named
+  in `config/select.yaml`) and checks the projections, in the target's
+  levels, for ordering by severity and for bounds. It proposes a default:
+  among the candidates that pass every check and are in the confidence
+  set, the one with the fewest drivers, then the lowest scaled error. The
+  modeller confirms or overrides it in configuration (`choice`), with a
+  reason. Artefacts: ranking, evaluation, scenario and selection tables, a
+  back-test chart, a scenario chart and a finding. `confidence_set()`,
+  `default_rule()`, `out_of_order()` and `read_scenarios()` are public. New
+  error `SelectError`.
+- `dz.models.Design`: how a candidate's target and drivers are built from
+  the series in levels (transform chains, lags, a trend term, the sample),
+  shared by build and select.
+- The default pipeline is `ingest, clean, explore, build, select`, and
+  `dazflow init` writes `config/build.yaml`, `config/select.yaml` and
+  illustrative scenarios for the example data. `project.yaml: seed` now
+  reaches the steps (`StepInputs.seed`).
+- A fitted model computes its data fingerprint when first asked for it,
+  which makes a rolling-origin evaluation about twice as fast.
+
 - `dz.models`: model forms behind one interface, `fit(y, X)` returning a
   fitted model with `params`, `cov_params`, `residuals`, `spec` and
   `predict(h, X_future, levels)`, which returns a `Forecast` (mean path
