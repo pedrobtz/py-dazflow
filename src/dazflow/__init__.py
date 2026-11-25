@@ -5,7 +5,7 @@ from importlib.metadata import PackageNotFoundError, version
 from dazflow import checks, core, evaluation, models, pipeline, project, readers, transforms
 from dazflow.core import *  # noqa: F403 - the core objects are the top-level API
 from dazflow.core import __all__ as _core_all
-from dazflow.steps import build, clean, explore, ingest, select
+from dazflow.steps import build, clean, explore, forecast, ingest, select
 
 try:  # one source: the version in pyproject.toml, read from the installed metadata
     __version__ = version("dazflow")
@@ -20,6 +20,7 @@ __all__ = [
     "core",
     "evaluation",
     "explore",
+    "forecast",
     "ingest",
     "models",
     "pipeline",

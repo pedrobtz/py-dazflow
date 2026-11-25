@@ -2,7 +2,7 @@
 
 >>> from dazflow import pipeline
 >>> pipeline.Pipeline().steps
-('ingest', 'clean', 'explore', 'build', 'select')
+('ingest', 'clean', 'explore', 'build', 'select', 'forecast')
 
 A step joins a pipeline by name once it is in `dazflow.steps.registry`. The
 pipeline calls it through its adapter in `adapters` (``@register_adapter(name)``),

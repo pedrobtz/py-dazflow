@@ -212,3 +212,30 @@ def _select(step: Any, config: Config, inputs: StepInputs) -> StepResult:
         )
     )
     return result.model_copy(update={"config": config})
+
+
+@register_adapter("forecast")
+def _forecast(step: Any, config: Config, inputs: StepInputs) -> StepResult:
+    # Forecast takes the levels select ran on and select's result. Scenarios are declared
+    # once, in select's configuration (design D33, D40): the file is read from the project
+    # folder and recorded by its hash under this step too.
+    select = inputs.require("select")
+    levels = inputs.dataset_with(select.fingerprint)
+    spec = getattr(getattr(select, "config", None), "scenarios", None)
+    if spec is None or levels.scenarios is not None:
+        return step.run(levels, config, select=select, seed=inputs.seed)
+    path = inputs.resolve(spec.path)
+    frame, severity = readers.read_scenarios(spec, inputs.root)
+    result = step.run(
+        levels.with_scenarios(frame, severity), config, select=select, seed=inputs.seed
+    )
+    inputs.inputs.append(
+        InputRecord(
+            step=inputs.step,
+            name="scenarios",
+            path=spec.path,
+            kind="file-sha256",
+            fingerprint=file_sha256(path),
+        )
+    )
+    return result

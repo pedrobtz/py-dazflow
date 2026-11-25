@@ -39,6 +39,7 @@ def test_init_creates_the_design_layout(tmp_path):
         "config/build.yaml",
         "config/clean.yaml",
         "config/explore.yaml",
+        "config/forecast.yaml",
         "config/ingest.yaml",
         "config/select.yaml",
         "data/raw/scenarios.csv",

@@ -59,7 +59,7 @@ checks something the stage introduces and later stages build on.
 | 6 | [Pipeline, record and command line](#stage-6--pipeline-record-and-command-line) | quick | [#8](https://github.com/pedrobtz/py-dazflow/issues/8) | [#26](https://github.com/pedrobtz/py-dazflow/pull/26) | 2026-11-25 |
 | 7 | [Model forms and evaluation](#stage-7--model-forms-and-evaluation) | full | [#9](https://github.com/pedrobtz/py-dazflow/issues/9) | [#27](https://github.com/pedrobtz/py-dazflow/pull/27) | 2026-11-25 |
 | 8 | [Build and select](#stage-8--build-and-select) | quick | [#10](https://github.com/pedrobtz/py-dazflow/issues/10) | [#28](https://github.com/pedrobtz/py-dazflow/pull/28) | 2026-11-25 |
-| 9 | [Forecast](#stage-9--forecast) | quick | [#11](https://github.com/pedrobtz/py-dazflow/issues/11) | | |
+| 9 | [Forecast](#stage-9--forecast) | quick | [#11](https://github.com/pedrobtz/py-dazflow/issues/11) | [#29](https://github.com/pedrobtz/py-dazflow/pull/29) | 2026-11-25 |
 | 10 | [Diagnose](#stage-10--diagnose) | quick | [#12](https://github.com/pedrobtz/py-dazflow/issues/12) | | |
 | 11 | [Report and replay](#stage-11--report-and-replay) | quick | [#13](https://github.com/pedrobtz/py-dazflow/issues/13) | | |
 | 12 | [Documentation site](#stage-12--documentation-site) | quick | [#14](https://github.com/pedrobtz/py-dazflow/issues/14) | | |
@@ -615,6 +615,25 @@ optionally mean-reverting, back on the target's scale, with intervals.
 - The quick profile is green on the pull request.
 
 **Design.** [§7.7](design.md#77-forecast-projection-and-calibration).
+
+**As built** (2026-11-25). `dz.forecast.run(dataset, config, *, select,
+seed)` refits select's chosen model from its record and forecasts it from
+`design.end` under every scenario. Scenarios come from select's own
+`config/select.yaml: scenarios` (or `dataset.scenarios`), read through
+`dz.readers.read_scenarios`, which moved out of select so that no step
+imports another; select keeps its names. Anchoring is an add factor on
+the model's scale, `decay` (0.5) by default; reversion is linear on the
+target's scale. The correction is chosen by the chain (D41): none for
+differences, whose intervals add the horizons' variances; smearing for a
+log or Box-Cox; a seeded simulation for a logit or a nonlinear chain with
+a lag, its draws and seed recorded. Bounds default to select's. The fan
+chart is one figure, `F7.1`, as D28 and D31 chose. The default pipeline
+and `examples/loss-rate` now end at forecast, and the `package` job
+checks all six steps. The forecast-equality test compares OLS with
+`get_prediction` (statsmodels' OLS has no `get_forecast`) and ARIMAX with
+SARIMAX `get_forecast` from the same parameters, which keeps the
+optimiser's run-to-run variation at the lowest versions (#16) out of it.
+No dependency changed.
 
 ## Stage 10 — Diagnose
 

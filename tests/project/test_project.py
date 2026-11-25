@@ -85,12 +85,15 @@ def test_a_missing_schema_file_is_refused(tmp_path):
         read_dataset(path)
 
 
-@pytest.mark.parametrize("step", ["ingest", "clean", "explore", "build", "select"])
+@pytest.mark.parametrize("step", ["ingest", "clean", "explore", "build", "select", "forecast"])
 def test_commented_yaml_reads_back_as_the_configuration(step):
     cls = registry.get(step).Config
     examples = {
         "ingest": dz.project._folder._example_ingest,
         "select": dz.project._folder._example_select,
+        "forecast": lambda: cls.model_validate(
+            {"reversion": {"level": 2.5}, "bounds": [0.0, None], "anchor": {"rule": "carry"}}
+        ),
     }
     cfg = (
         examples[step]()
@@ -128,9 +131,9 @@ def test_commented_yaml_describes_each_described_field():
 
 def test_a_step_command_carries_the_earlier_results_from_the_record(example):
     assert runner.invoke(app, ["run", "-p", str(example)]).exit_code == 0
-    first = json.loads((example / "reports" / "record.json").read_text())
+    first = json.loads((example / "reports" / "record.json").read_text(encoding="utf-8"))
     assert runner.invoke(app, ["explore", "-p", str(example)]).exit_code == 0
-    second = json.loads((example / "reports" / "record.json").read_text())
+    second = json.loads((example / "reports" / "record.json").read_text(encoding="utf-8"))
     assert second["run"]["steps"] == ["explore"]
     assert second["run"]["carried"] == ["ingest", "clean"]
     for step in ("ingest", "clean"):
@@ -192,9 +195,11 @@ def test_validate_refuses_a_config_file_for_no_step(example):
 def test_validate_refuses_an_unknown_step_in_the_pipeline(example):
     path = example / "project.yaml"
     path.write_text(
-        path.read_text().replace("[ingest, clean, explore, build, select]", "[ingest, forecast]")
+        path.read_text().replace(
+            "[ingest, clean, explore, build, select, forecast]", "[ingest, diagnose]"
+        )
     )
-    with pytest.raises(dz.PipelineError, match="forecast"):
+    with pytest.raises(dz.PipelineError, match="diagnose"):
         dz.project.load(example).validate()
 
 
@@ -205,7 +210,7 @@ def test_a_style_file_is_used_for_the_reports(example):
     proj = dz.project.load(example)
     proj.validate()
     proj.write(proj.run(stop="ingest"))
-    styled = (example / "reports" / "ingest" / "T1.1.md").read_text()
+    styled = (example / "reports" / "ingest" / "T1.1.md").read_text(encoding="utf-8")
     table = dz.pipeline.RunRecord.load(proj.record_path).result("ingest").artefacts["T1.1"]
     assert (
         dz.render.render(table, "markdown", style=example / "style.yaml").split("Source")[0]

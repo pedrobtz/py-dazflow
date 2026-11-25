@@ -303,6 +303,8 @@ _HEADER = {
     "rule (design §7.6). Confirm or override the proposal in choice, with a reason.\n"
     "data/raw/scenarios.csv holds illustrative driver paths written for the example data,\n"
     "not a published scenario.",
+    "forecast": "forecast: the chosen model under every scenario of config/select.yaml, anchored at\n"
+    "the origin and back on the target's scale with intervals (design §7.7).",
 }
 
 

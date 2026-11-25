@@ -29,7 +29,7 @@ from dazflow.readers._base import ReadSpec
 __all__ = ["DEFAULT_STEPS", "Pipeline", "Run"]
 
 # The 0.1.0 steps built so far, in design §7 order.
-DEFAULT_STEPS: tuple[str, ...] = ("ingest", "clean", "explore", "build", "select")
+DEFAULT_STEPS: tuple[str, ...] = ("ingest", "clean", "explore", "build", "select", "forecast")
 
 
 def _now() -> str:

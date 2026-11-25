@@ -18,7 +18,11 @@ from dazflow.steps import Step, clean, explore, ingest
 
 
 def test_the_default_pipeline_is_the_built_steps():
-    assert Pipeline().steps == DEFAULT_STEPS == ("ingest", "clean", "explore", "build", "select")
+    assert (
+        Pipeline().steps
+        == DEFAULT_STEPS
+        == ("ingest", "clean", "explore", "build", "select", "forecast")
+    )
 
 
 @pytest.mark.parametrize(
@@ -26,7 +30,7 @@ def test_the_default_pipeline_is_the_built_steps():
     [
         ([], "no steps"),
         (["ingest", "ingest"], "more than once"),
-        (["ingest", "forecast"], "forecast"),
+        (["ingest", "diagnose"], "diagnose"),
     ],
 )
 def test_a_pipeline_of_unknown_or_repeated_steps_is_refused(steps, match):
@@ -37,7 +41,7 @@ def test_a_pipeline_of_unknown_or_repeated_steps_is_refused(steps, match):
 def test_select_takes_from_and_to_in_pipeline_order():
     p = Pipeline()
     assert p.select() == DEFAULT_STEPS
-    assert p.select("clean") == ("clean", "explore", "build", "select")
+    assert p.select("clean") == ("clean", "explore", "build", "select", "forecast")
     assert p.select(None, "clean") == ("ingest", "clean")
     assert p.select("clean", "clean") == ("clean",)
     with pytest.raises(dz.PipelineError, match="comes after"):
@@ -257,6 +261,14 @@ def test_select_needs_build_before_it(example):
     configs = {k: v for k, v in proj.configs().items() if k in ("ingest", "clean", "select")}
     with pytest.raises(dz.PipelineError, match="needs the result of 'build'"):
         Pipeline(["ingest", "clean", "select"]).run(configs, root=example)
+
+
+def test_forecast_needs_select_before_it(example):
+    proj = dz.project.load(example)
+    steps = ("ingest", "clean", "explore", "build", "forecast")
+    configs = {k: v for k, v in proj.configs().items() if k in steps}
+    with pytest.raises(dz.PipelineError, match="needs the result of 'select'"):
+        Pipeline(list(steps)).run(configs, root=example)
 
 
 def test_build_without_explore_takes_the_latest_dataset(example):

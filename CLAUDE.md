@@ -66,6 +66,10 @@ rolling-origin `evaluate`) and `dazflow.testing.ModelContract`.
 `project.yaml: seed` passed to the steps. The default pipeline ends at
 select.
 
+2026-11-25, Stage 9: `steps/forecast.py`, `readers/_scenarios.py` (the
+scenario reader select and forecast share) and the forecast adapter. The
+default pipeline ends at forecast.
+
 ## Versions and dependents
 
 `v0.1.0` issue: see the roadmap header. Dependents: none.
@@ -184,6 +188,14 @@ To be written as stages land; see `.agents/design.md` §4 for the layers
   checks are overridden as `<candidate>/<check>`. Select's numbers repeat
   to about 1e-15 between runs (statsmodels' intervals move by an ulp), its
   choice and confidence set exactly: compare results with a tolerance.
+- `steps/forecast.py` takes the levels and select's result; its scenarios
+  are select's (`dataset.scenarios`, else `select.config.scenarios`, read
+  by `readers.read_scenarios`; the adapter reads the file from the project
+  folder). Anchoring is on the model's scale, reversion on the target's;
+  `back_transform` picks the correction by the chain (D41). Simulated
+  corrections use `numpy.random.default_rng(seed)`, the same draws for
+  every scenario; keep test draws small, as a chain with a nonlinear lag
+  inverts each path separately.
 - `tests/models/` has an `__init__.py` because `tests/checks/` already has
   a `test_contract.py`: without it the two basenames collide.
 - Never run `uv run --resolution lowest-direct` without restoring
