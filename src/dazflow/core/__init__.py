@@ -15,6 +15,7 @@ from dazflow.core.config import Config
 from dazflow.core.dataset import FINGERPRINT_FORMAT, Dataset, LogEntry, SeriesMeta
 from dazflow.core.errors import (
     ArtefactError,
+    BuildError,
     CheckError,
     CleanError,
     ConfigError,
@@ -36,6 +37,7 @@ from dazflow.core.errors import (
     RegistryError,
     RenderError,
     ResultError,
+    SelectError,
     TransformError,
     UnknownKeyError,
 )
@@ -51,6 +53,7 @@ __all__ = [
     "Artefact",
     "ArtefactError",
     "ArtefactIds",
+    "BuildError",
     "Check",
     "CheckError",
     "CleanError",
@@ -84,6 +87,7 @@ __all__ = [
     "RegistryError",
     "RenderError",
     "ResultError",
+    "SelectError",
     "SeriesMeta",
     "Source",
     "StepResult",
