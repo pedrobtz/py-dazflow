@@ -23,6 +23,7 @@ CLASSES = [
     errors.BuildError,
     errors.SelectError,
     errors.ForecastError,
+    errors.DiagnoseError,
 ]
 
 
