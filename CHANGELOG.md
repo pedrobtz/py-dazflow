@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- `dz.explore`: the third step. It profiles every series (trend and
+  seasonal strength from STL, autocorrelation, volatility, intermittency),
+  runs ADF, DFGLS, Phillips-Perron and KPSS from arch and reads them
+  together into an order of integration, transforms each series by its
+  configured chain and the differences that order calls for, searches each
+  driver's lag against the target and screens it by a single-driver OLS
+  with HAC standard errors. The gate keeps a driver with its expected sign
+  (from configuration or the series metadata) and a p-value at most the
+  configured threshold; a driver that fails passes only by an override
+  with a reason. It returns the transformed dataset with a profile table,
+  a stationarity table, a driver screen, a lag-profile chart and a summary
+  finding. The statistics are public: `profile()`, `unit_root()`,
+  `integration_order()`, `lag_search()` and `screen()`. New error
+  `ExploreError`.
 - `dz.checks`: seven data-quality checks, registered and configured with
   pointblank's warning, error and critical thresholds: `completeness`,
   `gaps`, `duplicates` (a value repeating the previous one), `range`,

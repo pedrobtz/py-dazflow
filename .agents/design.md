@@ -489,6 +489,71 @@ Zivot-Andrews); statsmodels `adfuller`, `kpss`, `acf`, `ccf`, `STL`,
 `OLS(cov_type="HAC")`; scipy `special.logit`, `stats.boxcox`; optional
 tsfeatures-style measures from statsforecast or tsfresh.
 
+Settled 2026-11-25 (Stage 5, D31). `dz.explore.run(dataset, config)`
+profiles and tests every numeric series, transforms each, and screens
+each driver against the one target (`target`, default the dataset's only
+target; `drivers`, default the dataset's drivers, in that order). The
+caller's dataset is not changed; the result's `dataset` holds every
+series transformed by its chain, recorded in `SeriesMeta.transforms`
+and logged.
+
+- **Profile** (`profile()`), on the values from the first to the last
+  present one, interior gaps interpolated for the fit and counted: trend
+  and seasonal strength, `max(0, 1 - Var(R)/Var(T+R))` and
+  `max(0, 1 - Var(R)/Var(S+R))` of a statsmodels STL fit (seasonal
+  smoother `profile.seasonal`, 7) for monthly and quarterly series, or a
+  lowess trend over `profile.trend_window` years (21) and no seasonal
+  measure for annual ones; sample autocorrelation at lag 1 and at a year;
+  volatility, the standard deviation of period-on-period changes; and
+  intermittency, the share of present values equal to zero.
+- **Stationarity** (`unit_root()`, `integration_order()`): ADF, DFGLS,
+  Phillips-Perron and KPSS from arch on the series after its configured
+  `transforms` chain (e.g. `log`). Each test says stationary at
+  `stationarity.alpha` (0.05): the three unit-root tests when p < alpha,
+  KPSS when p >= alpha (`says_stationary()`). A level is stationary when
+  at least `stationarity.votes` (3) of the four say so. Levels are tried
+  in order: the series around a constant, then around a linear trend,
+  then its first, second ... differences around a constant, up to
+  `stationarity.max_order` (2). The first stationary level gives the
+  order and the kind: `stationary` (I(0)), `trend-stationary`,
+  `integrated` (I(d)); none within `max_order` is `undetermined`, and
+  the series gets `max_order` differences. A trend-stationary series is
+  differenced once (`stationarity.trend_stationary: difference`) or kept
+  in levels (`keep`). `stationarity.lags` fixes every test's lags or
+  bandwidth; unset, ADF and DFGLS choose by `stationarity.method` (AIC)
+  and PP and KPSS take arch's data-dependent bandwidth. A test arch cannot
+  run (a constant or too short series) is noted and does not say
+  stationary; a series with fewer than `stationarity.min_observations`
+  (20) values is an `ExploreError`. The chain is the configured
+  transforms followed by one `diff(lag=1)` per difference.
+- **Lag search** (`lag_search()`), on the transformed series: the
+  correlation of the target with each driver lagged 0 to `max_lag` (4)
+  periods, all on the one sample where the target and every lag are
+  present; the lag of largest absolute correlation is chosen (the
+  smallest on a tie).
+- **Screen** (`screen()`): the target on a constant and the driver at its
+  lag, by statsmodels OLS with HAC standard errors (`maxlags` from
+  `hac_maxlags`, default floor(4 (n/100)^(2/9)), Newey-West), on every
+  period with both present.
+- **Expected signs**: `expected_signs` in configuration, by driver,
+  replaces `SeriesMeta.expected_sign`; 0 or unset means no sign check.
+- **Gate** (`driver_checks()`): per driver, `sign:<driver>` (coefficient
+  times expected sign > 0, only with an expected sign of -1 or 1) and
+  `significance:<driver>` (HAC p-value <= `significance`, 0.05). A
+  missing coefficient or p-value fails. A failed check passes only with
+  an override and its reason. The kept drivers are those whose checks
+  all pass or are overridden; the gate passes when every driver is kept,
+  so a driver that does not qualify is either removed from `drivers` or
+  accepted by override, and either choice is in configuration.
+- **Artefacts:** `T3.1` series profile (with each series' integration
+  and chain), `T3.2` stationarity tests (one row per level tried), `T3.3`
+  driver screen, `T3.4` the gate, `F3.1` the lag profiles of every
+  driver in one figure (no driver, no figure), `S3.1` the summary
+  finding (`explore.summary`).
+- Zivot-Andrews (listed above) is not run in 0.1.0: the roadmap's Stage
+  5 names the four tests, and a structural break belongs with the
+  `breaks` extra.
+
 ### 7.4 `build`: candidate models
 
 - Check correlation and variance inflation between drivers.
@@ -885,7 +950,8 @@ Each statistical result needs an oracle, not just a passing run.
   and `period`), `ReaderError`, its subclass `MissingExtraError` (with
   `module` and `extra`) and `IngestError` (2026-11-25). Stage 4 adds `CheckError` (a check
   cannot be evaluated as configured) and `CleanError` (a treatment names
-  what the data lack) (2026-11-25).
+  what the data lack) (2026-11-25). Stage 5 adds `ExploreError` (a series
+  cannot be profiled, tested or screened as configured) (2026-11-25).
 - **D18.** Registry: `Registry(kind, protocol=None)`, `@registry.register(key)`
   and `registry.add(key, obj)`; keys are non-empty strings registered once
   (`DuplicateKeyError`); a component lacking a protocol member is refused;
@@ -911,7 +977,8 @@ Each statistical result needs an oracle, not just a passing run.
   name), and the errors `dz.TransformError`, `dz.ReaderError`,
   `dz.MissingExtraError` and `dz.IngestError` (2026-11-25, Stage 3).
   Stage 4 adds `dz.checks` and `dz.clean`, and `dz.CheckError` and
-  `dz.CleanError` (2026-11-25).
+  `dz.CleanError` (2026-11-25). Stage 5 adds `dz.explore` and
+  `dz.ExploreError` (2026-11-25).
 - **D21.** Artefact identifiers: `T`, `F` and `S` (findings) with the §7
   step number and a number declared per artefact in `ArtefactIds`;
   `StepResult.artefacts` is sorted by identifier (2026-11-25, Stage 2:
@@ -1000,6 +1067,25 @@ Each statistical result needs an oracle, not just a passing run.
   are not counted by any check, so later steps keep their lags
   (2026-11-25, Stage 4: dropping rows would break the period index that
   differences and lags rely on).
+- **D31.** `explore` reads ADF, DFGLS, Phillips-Perron and KPSS together
+  by vote: a level is stationary when at least 3 of the 4 say so at the
+  5% level, trying the series around a constant, around a trend, then
+  each difference up to two, with the votes, level and alpha in
+  configuration (2026-11-25, Stage 5: measured over 200 seeds of 200
+  values, the rule reads 189 random walks as I(1), 200 AR(1) series with
+  phi = 0.5 as I(0) and 200 trend-stationary series as such; requiring all
+  four to agree read 92 of 100 AR(1) series as I(0), because KPSS by its
+  size rejects about one stationary series in twenty). Lags are chosen by the largest
+  absolute correlation on one common sample, and the screen is a
+  single-driver OLS with Newey-West HAC errors. A driver is kept with the
+  expected sign and a p-value at most the threshold (`<=`, so the
+  threshold itself passes), and the gate fails while any configured driver
+  is not kept and not overridden. The lag profiles of all drivers are one
+  figure, `F3.1`, so D21 needs no per-series identifier rule (as D28 did
+  for ingest): drivers are lines on one correlation axis, which share a
+  scale. Arch versions disagree on a constant series (7.0's KPSS returns a
+  statistic, later releases raise), so a constant series is reported as
+  untestable before arch is called.
 
 ## 15 Build order
 

@@ -19,6 +19,7 @@ __all__ = [
     "DatasetError",
     "DazflowError",
     "DuplicateKeyError",
+    "ExploreError",
     "FindingError",
     "GateError",
     "IngestError",
@@ -125,6 +126,10 @@ class CheckError(DazflowError):
 
 class CleanError(DazflowError):
     """The clean step cannot treat the data as configured, such as a treatment naming an unknown period."""
+
+
+class ExploreError(DazflowError):
+    """The explore step cannot profile, test or screen the series as configured."""
 
 
 class ResultError(DazflowError):

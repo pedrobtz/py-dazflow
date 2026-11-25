@@ -55,7 +55,7 @@ checks something the stage introduces and later stages build on.
 | 2 | [Artefacts and rendering](#stage-2--artefacts-and-rendering) | full | [#4](https://github.com/pedrobtz/py-dazflow/issues/4) | [#22](https://github.com/pedrobtz/py-dazflow/pull/22) | 2026-11-25 |
 | 3 | [Transforms, readers and ingest](#stage-3--transforms-readers-and-ingest) | quick | [#5](https://github.com/pedrobtz/py-dazflow/issues/5) | [#23](https://github.com/pedrobtz/py-dazflow/pull/23) | 2026-11-25 |
 | 4 | [Clean](#stage-4--clean) | quick | [#6](https://github.com/pedrobtz/py-dazflow/issues/6) | [#24](https://github.com/pedrobtz/py-dazflow/pull/24) | 2026-11-25 |
-| 5 | [Explore](#stage-5--explore) | quick | [#7](https://github.com/pedrobtz/py-dazflow/issues/7) | | |
+| 5 | [Explore](#stage-5--explore) | quick | [#7](https://github.com/pedrobtz/py-dazflow/issues/7) | [#25](https://github.com/pedrobtz/py-dazflow/pull/25) | 2026-11-25 |
 | 6 | [Pipeline, record and command line](#stage-6--pipeline-record-and-command-line) | quick | [#8](https://github.com/pedrobtz/py-dazflow/issues/8) | | |
 | 7 | [Model forms and evaluation](#stage-7--model-forms-and-evaluation) | full | [#9](https://github.com/pedrobtz/py-dazflow/issues/9) | | |
 | 8 | [Build and select](#stage-8--build-and-select) | quick | [#10](https://github.com/pedrobtz/py-dazflow/issues/10) | | |
@@ -368,6 +368,17 @@ driver is screened against the target, with its expected sign checked.
 - The quick profile is green on the pull request.
 
 **Design.** [§7.3](design.md#73-explore-each-series-alone-each-driver-against-the-target).
+
+**As built** (2026-11-25). The four tests are read by vote, at least 3 of
+4 at the 5% level, around a constant, then a trend, then each difference
+up to two (D31). Over 200 seeds the rule reads 189 random walks as I(1),
+so the per-seed known-answer test names ten seeds the rule reads right
+and a rate test covers forty. Reruns of arch and statsmodels agree only to
+about 1e-16 (BLAS paths), so the exact threshold straddles run on the pure
+readings `says_stationary()` and `driver_checks()`, and the end-to-end
+straddles leave a margin of 1e-6. The lag profiles are one figure (`F3.1`)
+holding every driver, so D21 is not amended. Zivot-Andrews (§7.3's package
+list) is not run.
 
 ## Stage 6 — Pipeline, record and command line
 
