@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+- `dz.report`: the eighth and last step of 0.1.0. It builds the run's Word
+  document from the run record alone: a contents list, a summary, one
+  section per step in pipeline order with that step's finding, tables and
+  figures, and appendices with every setting of every step, the
+  environment and the inputs with their fingerprints. Its own artefacts:
+  the run summary (`T10.1`), environment (`T10.2`), inputs (`T10.3`),
+  configuration (`T10.4`) and gate (`T10.5`) tables, and a finding
+  (`S10.1`). `dazflow run` writes `reports/document/document.docx` and a
+  plain-Python replay script, `reports/document/replay.py`. Configuration:
+  the title, the file name and the replay tolerance. New error
+  `ReportError`.
+- Replay: `dazflow replay` (and `Project.replay()`, `dz.pipeline.replay`)
+  reruns every step from `reports/record.json` and compares every input
+  fingerprint, dataset fingerprint and recorded result with it, and the
+  project's current configuration with the recorded one. Each difference
+  is named by its path with both values. Floats match within a relative
+  tolerance of 1e-9 (1e-12 absolute near zero), everything else exactly.
+  The command exits 0 on a match and 2 on a difference.
+  `dz.pipeline.compare` and `compare_records` are public.
+- The default pipeline ends at report, and `dazflow init` writes
+  `config/report.yaml`.
+- Fixed: a dataset's series recorded the resolved input path as their
+  source, so the same project in another folder, or run from another
+  working directory, gave datasets of another fingerprint. The source is
+  now the path as written; `dz.ingest.run` takes `root=`, the folder
+  relative paths are read from.
+
 - `dz.diagnose`: the seventh step. It refits select's chosen model and
   tests it. Residual tests: Ljung-Box, Breusch-Godfrey, Breusch-Pagan,
   White, ARCH, Jarque-Bera and RESET, each a p-value against a configured

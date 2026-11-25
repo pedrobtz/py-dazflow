@@ -73,6 +73,10 @@ default pipeline ends at forecast.
 2026-11-25, Stage 10: `steps/diagnose.py` and the diagnose adapter. The
 default pipeline ends at diagnose.
 
+2026-11-26, Stage 11: `steps/report.py`, `pipeline/_replay.py`,
+`Project.replay` and `dazflow replay`. The default pipeline ends at report,
+every 0.1.0 step.
+
 ## Versions and dependents
 
 `v0.1.0` issue: see the roadmap header. Dependents: none.
@@ -82,6 +86,7 @@ default pipeline ends at diagnose.
 ```sh
 uv sync --all-extras          # install, with the dev group and every extra
 uv run pytest                 # tests, in random order (seed in the header)
+uv run pytest -n auto         # the same in parallel, as the quick job runs them
 uv run pytest -p no:randomly  # tests in file order
 uv run pytest --randomly-seed=<seed>   # replay a CI order
 uv run pytest --cov=dazflow --cov-report=term-missing   # as CI runs them
@@ -209,8 +214,21 @@ To be written as stages land; see `.agents/design.md` §4 for the layers
   1e-15: threshold tests straddle by a relative 1e-9 and check the value
   itself on `Diagnostic.check()`. The CUSUM bounds use Brown, Durbin and
   Evans' constants (statsmodels' private bound for 0.10 is wrong).
-- `tests/models/` has an `__init__.py` because `tests/checks/` already has
-  a `test_contract.py`: without it the two basenames collide.
+- `steps/report.py` reads only the run record (a `RunRecord` or its dict):
+  the adapter passes `StepInputs.record()`, the record of the steps before
+  it. Its `document` and `script` are excluded from `to_dict()`;
+  `Project.write` writes them to `reports/document/` with the final
+  record's source notes. Report's identifiers are `T10.x`/`S10.x` (§7.10).
+- `pipeline/_replay.py`: `replay` reruns from the record (recorded
+  configuration, seed and environment) and `compare_records` compares by
+  path; `Project.replay` adds the check that `project.yaml` and `config/`
+  still equal the record. Floats within `RTOL` 1e-9 (`ATOL` 1e-12), all
+  else exactly (D43). Anything a step's result holds must not depend on the
+  folder's location or the working directory, or a replay of a copied
+  folder fails: `ingest.run(..., root=)` keeps paths as written.
+- `tests/models/` and `tests/e2e/` have an `__init__.py` because
+  `tests/checks/` already has a `test_contract.py` and `tests/render/` a
+  `test_document.py`: without it the basenames collide.
 - Never run `uv run --resolution lowest-direct` without restoring
   `uv.lock` afterwards: it rewrites the lock with the lowest versions.
 - Tests that need an extra carry `@pytest.mark.extra("<distribution>")`
@@ -261,6 +279,8 @@ lowest-direct run still passes before committing.
 ## Continuous integration
 
 See "Commands" above. The full profile's `package` job also installs the
-built wheel into a clean environment and runs `dazflow validate` and
-`dazflow run` on a copy of `examples/loss-rate`; a non-zero exit or a
-record whose status is not `passed` fails the job.
+built wheel into a clean environment and runs `dazflow validate`,
+`dazflow run`, `dazflow report`, `dazflow replay` and the generated
+`reports/document/replay.py` on a copy of `examples/loss-rate`; a non-zero
+exit or a record whose status is not `passed` fails the job. The quick job
+runs pytest with `-n auto` (pytest-xdist).

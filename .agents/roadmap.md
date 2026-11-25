@@ -40,6 +40,12 @@ project, so Stage 6 adds it to the full profile's `package` job; until then
 that job builds, runs `twine check` and checks the sdist (2026-11-25,
 Stage 0).
 
+The quick job runs pytest in parallel (`pytest-xdist`, `-n auto`; the
+pytest-randomly seed is printed and passed to every worker) since Stage 11
+(2026-11-26): Stage 10's serial job took 4m03s against the five-minute
+budget, and Stage 11 adds end-to-end runs and replays of the example. No
+test left the quick profile.
+
 Pull requests run `quick`; pushes to `main` and pull requests labelled
 `full-ci` run `full`. A pull request's superseded runs are cancelled; a
 push to `main` never is. Documentation-only pull requests (Markdown,
@@ -61,7 +67,7 @@ checks something the stage introduces and later stages build on.
 | 8 | [Build and select](#stage-8--build-and-select) | quick | [#10](https://github.com/pedrobtz/py-dazflow/issues/10) | [#28](https://github.com/pedrobtz/py-dazflow/pull/28) | 2026-11-25 |
 | 9 | [Forecast](#stage-9--forecast) | quick | [#11](https://github.com/pedrobtz/py-dazflow/issues/11) | [#29](https://github.com/pedrobtz/py-dazflow/pull/29) | 2026-11-25 |
 | 10 | [Diagnose](#stage-10--diagnose) | quick | [#12](https://github.com/pedrobtz/py-dazflow/issues/12) | [#30](https://github.com/pedrobtz/py-dazflow/pull/30) | 2026-11-25 |
-| 11 | [Report and replay](#stage-11--report-and-replay) | quick | [#13](https://github.com/pedrobtz/py-dazflow/issues/13) | | |
+| 11 | [Report and replay](#stage-11--report-and-replay) | quick | [#13](https://github.com/pedrobtz/py-dazflow/issues/13) | | 2026-11-26 |
 | 12 | [Documentation site](#stage-12--documentation-site) | quick | [#14](https://github.com/pedrobtz/py-dazflow/issues/14) | | |
 | 13 | [Assurance](#stage-13--assurance) | quick | [#15](https://github.com/pedrobtz/py-dazflow/issues/15) | | |
 | 14 | [Full CI](#stage-14--full-ci) | full | [#16](https://github.com/pedrobtz/py-dazflow/issues/16) | | |
@@ -735,6 +741,29 @@ replayed from its record.
 
 **Design.** [§7.10](design.md#710-report-deliverables),
 [§10.1](design.md#101-run-record).
+
+**As built** (2026-11-26). `dz.report.run(record, config=None)` builds the
+document, its tables (`T10.1` run summary, `T10.2` environment, `T10.3`
+inputs, `T10.4` configuration, `T10.5` gate), a finding (`S10.1`) and the
+replay script from the run record alone; its adapter passes the record of
+the steps before it, and `Project.write` writes `reports/document/
+document.docx` and `replay.py` with the final record's source notes.
+`dz.pipeline.replay` reruns every step from the record and compares every
+input fingerprint, dataset fingerprint and result by path; `Project.replay`
+also compares the project's current configuration with the recorded one;
+`dazflow replay` exits 0 on a match and 2 on a difference. Floats match to
+a relative 1e-9 with an absolute floor of 1e-12, everything else exactly
+(D43); the roadmap's "matches its record exactly" is read as that. The
+step's own gate is `complete` and `gates`; the replay that §7.10 calls the
+gate is `dazflow replay`'s exit status, which the `package` job now runs on
+the installed wheel with `dazflow report` (D44, a deviation from §7.10).
+The cross-machine tolerance for ARIMAX and ETS that Stage 7 asked for is
+not set: no leg replays across machines, so it moves to Stage 14 (D43).
+Found on the way: a series' `source` held the resolved input path, so the
+same project in another folder had datasets of another fingerprint and its
+replay failed; `ingest.run(..., root=)` now records the path as written
+(§10, D35 amended). The quick job runs pytest in parallel with
+pytest-xdist, a dev-group addition (CI policy).
 
 ## Stage 12 — Documentation site
 
