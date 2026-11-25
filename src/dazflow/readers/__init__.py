@@ -22,14 +22,17 @@ from dazflow.readers._base import (
     registry,
     require,
 )
+from dazflow.readers._scenarios import ScenarioInput, read_scenarios
 
 __all__ = [
     "FREQUENCIES",
     "ReadSpec",
     "Reader",
+    "ScenarioInput",
     "from_frame",
     "get",
     "read",
+    "read_scenarios",
     "register",
     "registry",
     "require",
