@@ -35,6 +35,11 @@ record, replay and a Word document. Everything else is under
   installed; build sdist and wheel, `twine check`, and `dazflow run` from
   the installed wheel on the example project.
 
+The installed-wheel `dazflow run` needs the command line and the example
+project, so Stage 6 adds it to the full profile's `package` job; until then
+that job builds, runs `twine check` and checks the sdist (2026-11-25,
+Stage 0).
+
 Pull requests run `quick`; pushes to `main` and pull requests labelled
 `full-ci` run `full`. A pull request's superseded runs are cancelled; a
 push to `main` never is. Documentation-only pull requests (Markdown,
@@ -45,7 +50,7 @@ checks something the stage introduces and later stages build on.
 
 | Stage | Title | CI | Issue | Pull request | Done |
 | --- | --- | --- | --- | --- | --- |
-| 0 | [Package identity](#stage-0--package-identity) | quick | [#2](https://github.com/pedrobtz/py-dazflow/issues/2) | | |
+| 0 | [Package identity](#stage-0--package-identity) | quick | [#2](https://github.com/pedrobtz/py-dazflow/issues/2) | [#20](https://github.com/pedrobtz/py-dazflow/pull/20) | 2026-11-25 |
 | 1 | [Core objects](#stage-1--core-objects) | full | [#3](https://github.com/pedrobtz/py-dazflow/issues/3) | | |
 | 2 | [Artefacts and rendering](#stage-2--artefacts-and-rendering) | full | [#4](https://github.com/pedrobtz/py-dazflow/issues/4) | | |
 | 3 | [Transforms, readers and ingest](#stage-3--transforms-readers-and-ingest) | quick | [#5](https://github.com/pedrobtz/py-dazflow/issues/5) | | |
@@ -355,6 +360,9 @@ record. Later stages plug into this.
   `run --from/--to`, `show`, `plugins`; `--json`; exit codes 0, 1, 2.
 - An example project under `examples/` used by the tests and the full
   profile's installed-wheel run.
+- The full profile's `package` job: install the built wheel into a clean
+  environment and run `dazflow run` on the example project (deferred here
+  from Stage 0, 2026-11-25).
 
 **Tests.**
 
