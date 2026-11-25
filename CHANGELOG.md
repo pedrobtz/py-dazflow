@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+- `dz.forecast`: the sixth step. It refits select's chosen model and
+  forecasts it from the origin (the last period of its sample) under
+  every scenario, with intervals. The gap between observed and fitted at
+  the origin is anchored by a configured rule (`carry`, `decay` with a
+  rate, or `none`); an optional reversion moves the path linearly towards
+  a long-run level. Forecasts come back to the target's scale through the
+  recorded transform chain with a bias correction suited to it: smearing
+  for a log or Box-Cox, a seeded simulation for a logit or a nonlinear
+  chain with a lag, none for differences (whose intervals add the
+  horizons' variances). The gate checks that the forecast reconciles to
+  the origin within a tolerance and stays within the bounds (select's
+  unless configured). Scenarios are select's, read from the same
+  `config/select.yaml` setting. Artefacts: a forecast table by scenario
+  and horizon (`T7.1`), the projection record (`T7.2`), the gate (`T7.3`),
+  a fan chart (`F7.1`) and a finding (`S7.1`). `adjustment()`, `revert()`
+  and `back_transform()` are public. New error `ForecastError`.
+- `dz.readers.read_scenarios` and `dz.readers.ScenarioInput`: the scenario
+  reader moved out of select so forecast can share it; select's
+  `read_scenarios` and `ScenarioInput` still work, and still raise
+  `SelectError`.
+- The default pipeline ends at forecast, and `dazflow init` writes
+  `config/forecast.yaml`.
+
 - `dz.build`: the fourth step. It checks the drivers' correlation and
   variance inflation, searches driver combinations up to a size
   (exhaustively, or forward stepwise by AIC or BIC) without the excluded

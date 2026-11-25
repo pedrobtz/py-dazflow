@@ -839,6 +839,70 @@ fingerprint, scenarios left out, must be build's) with any scenarios in
 `VARResults.forecast`; numpy `random.Generator` for simulation;
 optional xarray for scenario × horizon × segment cubes.
 
+Settled 2026-11-25 (Stage 9, D41). `dz.forecast.run(dataset, config=None,
+*, select, seed=None)` takes the series in levels select ran on (its
+fingerprint, scenarios left out, must be select's) and select's result.
+
+- **Model and origin.** Select's `record` is refitted (`models.refit`, so
+  the data's fingerprint is checked) on `select.design.frames(levels)`; the
+  origin is the design's last sample period, `design.end`. Each scenario is
+  one `Fitted.predict(h, design.future(levels, paths, h), levels=)` call;
+  that `Forecast`, before anchoring, is `ScenarioPath.raw`.
+- **Scenarios** are declared once (D33, D40): `dataset.scenarios`, else
+  select's own `config.scenarios` file, which the pipeline adapter reads
+  from the project folder and records under the forecast step too. The
+  reader is the shared `dazflow.readers.read_scenarios` (moved out of
+  select, which keeps its name and its `SelectError`), since steps do not
+  import each other. The horizon is `horizon`, else as many periods as
+  every scenario covers after the origin.
+- **Anchoring** is on the model's scale (an add factor on the equation as
+  fitted): the gap is observed minus fitted at the origin, and horizon *h*
+  adds the gap (`carry`), gap × (1 − `decay`)^*h* (`decay`, the default,
+  `decay` 0.5) or nothing (`none`), to the mean and both bounds.
+- **Back to the target's scale** through the target's resolved chain and
+  `transforms.inverse` with the observed history (D27). `correction: auto`
+  picks by the chain: no nonlinear transform (empty, `diff`,
+  `seasonal_diff`): no correction, the inverse of the mean is the mean,
+  and the bounds are the mean ± the square root of the summed squared
+  half-widths through the chain's linear map (`intervals: linear`); a
+  chain without lags (`log`, `boxcox`): smearing, the inverse averaged
+  over the model's residuals (Duan, 1983), bounds inverted
+  (`intervals: inverse`, exact for an increasing transform); a `logit`
+  without lags: simulation, the inverse averaged over `simulation.draws`
+  normal errors whose standard deviation is read from the widest interval;
+  a nonlinear chain with a lag (`log` then `diff`, `logdiff`, `growth`):
+  simulated level paths, the mean and the quantile bounds taken from them
+  (`intervals: simulated`). `none` keeps the plain inverse (the median of
+  a monotone transform); smearing with a lag, or any correction on a linear
+  chain, is a `ForecastError`. Errors are taken independent across
+  horizons, which is exact for the regression forms and an approximation
+  for ARIMAX. The draws use `numpy.random.default_rng(seed)`, the same
+  draws for every scenario (common random numbers), with `seed` from
+  `simulation.seed`, else project.yaml's (`StepInputs.seed`), else 0; the
+  result records `correction`, `intervals`, `draws` and `seed`.
+- **Mean reversion** (`reversion: {level, periods}`) is on the target's
+  scale, after the correction: horizon *h* moves the mean by
+  min(*h*/`periods`, 1) × (level − mean), `periods` unset meaning the
+  horizon, and the bounds by the same shift, so the interval keeps its
+  width.
+- **Gate:** `reconcile`, the forecast taken back to the origin (fitted plus
+  the anchoring at *h* = 0, through the chain with the history before the
+  origin) minus the observed value, in absolute value at most `tolerance`
+  (1e-6, in the target's units; `carry` and `decay` meet it by
+  construction, so it binds under `none`); `forecast-bounds`, the forecast
+  means outside `bounds`, which default to select's.
+- **Artefacts:** `T7.1` the forecasts by scenario and horizon (mean and
+  bounds), `T7.2` the projection record (model, origin, gap, rule,
+  reversion, chain, correction, intervals, draws, seed, bounds), `T7.3`
+  the gate, `F7.1` the fan chart (history, then every scenario's mean and
+  its widest interval, one figure as D28 and D31 chose), `S7.1` the
+  finding (`forecast.summary`).
+- The result holds what diagnose and report need: `chosen`, `form`,
+  `record`, `design`, `origin`, `gap`, `origin_gap`, `chain`, and `paths`,
+  one `ScenarioPath(scenario, raw, anchored, forecast, reversion)` per
+  scenario in `severity` order, `forecast` on the target's scale;
+  `result.path(scenario)` and `result.frame()` give them by scenario.
+
 ### 7.8 `diagnose`: test the chosen model
 
 - Residual diagnostics: autocorrelation, heteroskedasticity, normality,
@@ -1247,7 +1311,10 @@ Each statistical result needs an oracle, not just a passing run.
   adds `BuildError` (candidates cannot be built as configured: unknown
   drivers or forms, no common sample) and `SelectError` (candidates cannot
   be ranked or chosen as configured: the benchmark, the choice, the
-  scenarios) (2026-11-25).
+  scenarios) (2026-11-25). Stage 9 adds `ForecastError` (the chosen model
+  cannot be forecast as configured: no chosen model, no scenarios, a
+  horizon the scenarios do not cover, a correction the chain does not
+  take) (2026-11-25).
 - **D18.** Registry: `Registry(kind, protocol=None)`, `@registry.register(key)`
   and `registry.add(key, obj)`; keys are non-empty strings registered once
   (`DuplicateKeyError`); a component lacking a protocol member is refused;
@@ -1289,7 +1356,10 @@ Each statistical result needs an oracle, not just a passing run.
   Stage 8 adds `dz.build` and `dz.select` (the step modules), `dz.models.Design`
   and `dz.models.TREND`, `dz.BuildError` and `dz.SelectError`, and in
   `dz.pipeline` `StepInputs.seed`, `StepInputs.dataset_with`,
-  `StepInputs.require` and `Pipeline.run(seed=...)` (2026-11-25).
+  `StepInputs.require` and `Pipeline.run(seed=...)` (2026-11-25). Stage 9
+  adds `dz.forecast` (the step module, with `adjustment`, `revert` and
+  `back_transform`), `dz.readers.read_scenarios` and
+  `dz.readers.ScenarioInput`, and `dz.ForecastError` (2026-11-25).
 - **D21.** Artefact identifiers: `T`, `F` and `S` (findings) with the §7
   step number and a number declared per artefact in `ArtefactIds`;
   `StepResult.artefacts` is sorted by identifier (2026-11-25, Stage 2:
@@ -1497,6 +1567,21 @@ Each statistical result needs an oracle, not just a passing run.
   driver paths give equal projections, which are not out of order). The
   example project's `data/raw/scenarios.csv` holds illustrative paths
   written for the example data, not a published scenario.
+- **D41.** Forecast anchors on the model's scale (default `decay`, 0.5),
+  takes forecasts back through the recorded chain with a correction chosen
+  by the chain (none for differences, smearing for a log or Box-Cox,
+  seeded simulation for a logit or a nonlinear chain with a lag), reverts
+  linearly on the target's scale with the interval shifted not narrowed,
+  gates on the gap at the origin and on bounds that default to select's,
+  and reads select's scenarios through a shared reader (2026-11-25, Stage
+  9: an add factor on the equation is the jump-off adjustment the
+  modelling literature means, and on a differenced target `carry` would
+  add the gap every period, so the default fades it; a correction a chain
+  does not need is refused rather than run; Duan's smearing needs a
+  value-by-value inverse, and a lag makes the level error a sum of
+  horizons, which only paths capture; common random numbers keep the
+  scenarios' order free of simulation noise; one setting for scenarios and
+  for bounds, as D33 asks, and steps import no other step).
 
 ## 15 Build order
 
