@@ -8,7 +8,7 @@ from typing import Any, Protocol
 
 from dazflow.core.registry import Registry
 
-__all__ = ["Step", "build", "clean", "explore", "ingest", "registry", "select"]
+__all__ = ["Step", "build", "clean", "explore", "forecast", "ingest", "registry", "select"]
 
 
 class Step(Protocol):
@@ -23,10 +23,11 @@ class Step(Protocol):
 
 registry = Registry("step", protocol=Step)
 
-from dazflow.steps import build, clean, explore, ingest, select  # noqa: E402 - the registry exists before the steps register
+from dazflow.steps import build, clean, explore, forecast, ingest, select  # noqa: E402 - the registry exists before the steps register
 
 registry.add("ingest", ingest)
 registry.add("clean", clean)
 registry.add("explore", explore)
 registry.add("build", build)
 registry.add("select", select)
+registry.add("forecast", forecast)

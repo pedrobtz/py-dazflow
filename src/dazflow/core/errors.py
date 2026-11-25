@@ -23,6 +23,7 @@ __all__ = [
     "EvaluationError",
     "ExploreError",
     "FindingError",
+    "ForecastError",
     "GateError",
     "IngestError",
     "MissingExtraError",
@@ -153,6 +154,10 @@ class BuildError(DazflowError):
 
 class SelectError(DazflowError):
     """Candidates cannot be ranked or chosen as configured (benchmark, choice or scenarios)."""
+
+
+class ForecastError(DazflowError):
+    """The chosen model cannot be forecast as configured (scenarios, horizon or correction)."""
 
 
 class PipelineError(DazflowError):
