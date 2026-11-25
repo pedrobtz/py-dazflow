@@ -37,7 +37,7 @@ def build(observed=0.2, mean=1.25):
     return DemoResult(
         gate=gate,
         finding=finding,
-        artefacts={"X1.1": finding},
+        artefacts={"S1.1": finding},
         config=DemoConfig(alpha=0.1),
         mean=mean,
         labels=("a", "é"),
@@ -66,7 +66,7 @@ def test_to_dict_carries_the_shared_fields_and_the_config_as_run():
     assert [c["status"] for c in data["gate"]["checks"]] == ["overridden", "pass"]
     assert data["gate"]["checks"][0]["override"] == {"check": "adf", "reason": "Short sample."}
     assert data["finding"]["text"] == "The mean is 1.25 and 1 of 2 checks pass."
-    assert data["artefacts"]["X1.1"]["text"] == data["finding"]["text"]
+    assert data["artefacts"]["S1.1"]["text"] == data["finding"]["text"]
     assert data["mean"] == 1.25
     assert data["labels"] == ["a", "é"]
 

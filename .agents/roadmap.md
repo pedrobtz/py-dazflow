@@ -52,7 +52,7 @@ checks something the stage introduces and later stages build on.
 | --- | --- | --- | --- | --- | --- |
 | 0 | [Package identity](#stage-0--package-identity) | quick | [#2](https://github.com/pedrobtz/py-dazflow/issues/2) | [#20](https://github.com/pedrobtz/py-dazflow/pull/20) | 2026-11-25 |
 | 1 | [Core objects](#stage-1--core-objects) | full | [#3](https://github.com/pedrobtz/py-dazflow/issues/3) | [#21](https://github.com/pedrobtz/py-dazflow/pull/21) | 2026-11-25 |
-| 2 | [Artefacts and rendering](#stage-2--artefacts-and-rendering) | full | [#4](https://github.com/pedrobtz/py-dazflow/issues/4) | | |
+| 2 | [Artefacts and rendering](#stage-2--artefacts-and-rendering) | full | [#4](https://github.com/pedrobtz/py-dazflow/issues/4) | [#22](https://github.com/pedrobtz/py-dazflow/pull/22) | 2026-11-25 |
 | 3 | [Transforms, readers and ingest](#stage-3--transforms-readers-and-ingest) | quick | [#5](https://github.com/pedrobtz/py-dazflow/issues/5) | | |
 | 4 | [Clean](#stage-4--clean) | quick | [#6](https://github.com/pedrobtz/py-dazflow/issues/6) | | |
 | 5 | [Explore](#stage-5--explore) | quick | [#7](https://github.com/pedrobtz/py-dazflow/issues/7) | | |
@@ -207,6 +207,14 @@ PNG and SVG in the house style, with stable identifiers and provenance.
   on every leg.
 
 **Design.** [§9](design.md#9-artefacts).
+
+**As built** (2026-11-25). `Table` and `Figure` are data in `core/` (D23),
+since `StepResult` holds them; `render/` holds the style and renderers.
+The organisation override is loaded from a path, mapping or `Style`;
+Stage 6 points it at the project folder's style file. HTML snapshots are
+normalised trees and SVG snapshots are compared with a 1 pt tolerance, so
+the same files hold from the lowest to the latest great-tables and
+matplotlib (D25).
 
 ## Stage 3 — Transforms, readers and ingest
 

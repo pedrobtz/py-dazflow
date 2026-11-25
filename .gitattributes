@@ -1,0 +1,5 @@
+# Snapshots and sources are compared byte for byte on every platform:
+# check them out with LF line endings on Windows too.
+* text=auto eol=lf
+*.png binary
+*.docx binary
