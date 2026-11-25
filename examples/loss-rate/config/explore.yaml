@@ -1,0 +1,36 @@
+# explore: profiles, unit-root tests, lag search and the driver screen (design §7.3).
+
+# The target; unset: the dataset's one target.
+target: null
+# The drivers screened, in this order; unset: the dataset's drivers.
+drivers: null
+# Expected sign by driver; replaces the series metadata. 0: no sign check.
+expected_signs: {}
+# A chain applied before the stationarity tests, by series (e.g. log).
+transforms: {}
+profile:
+  # STL seasonal smoother length, in periods (odd, at least 3).
+  seasonal: 7
+  # Annual series: the lowess trend's window, in years.
+  trend_window: 21
+stationarity:
+  # Significance level of every test.
+  alpha: 0.05
+  # Tests of four that must say stationary.
+  votes: 3
+  # Most differences tried.
+  max_order: 2
+  # Lags (ADF, DFGLS) and bandwidth (PP, KPSS) of every test; unset: chosen by `method` for ADF and DFGLS, arch's default bandwidth for PP and KPSS.
+  lags: null
+  method: aic
+  # A trend-stationary series is differenced once, or kept in levels.
+  trend_stationary: difference
+  # Fewest values a series needs to be tested.
+  min_observations: 20
+# Lags searched: 0 to max_lag periods.
+max_lag: 4
+# A driver is kept with a HAC p-value at most this.
+significance: 0.05
+# HAC lags; unset: floor(4 (n/100)^(2/9)) (Newey-West).
+hac_maxlags: null
+overrides: []

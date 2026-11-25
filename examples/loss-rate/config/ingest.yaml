@@ -1,0 +1,47 @@
+# ingest: the inputs and the series taken from them (design §7.1).
+# Paths are relative to the project folder.
+
+# The calendar every series is put on: M, Q or Y.
+frequency: Q
+inputs:
+  - reader: null
+    path: data/raw/series.csv
+    date: null
+    frequency: null
+    columns: null
+    options: {}
+    name: macro
+series:
+  - name: loss_rate
+    input: null
+    column: null
+    role: target
+    unit: '%'
+    source: null
+    definition: Annual loss rate of the portfolio (example data)
+    expected_sign: null
+    aggregation: average
+    lag: 0
+  - name: gdp_growth
+    input: null
+    column: null
+    role: driver
+    unit: '%'
+    source: null
+    definition: Real GDP growth (example data)
+    expected_sign: -1
+    aggregation: average
+    lag: 0
+  - name: unemployment
+    input: null
+    column: null
+    role: driver
+    unit: '%'
+    source: null
+    definition: Unemployment rate (example data)
+    expected_sign: 1
+    aggregation: average
+    lag: 0
+# Fewest periods on which every target and driver has a value.
+min_history: 40
+overrides: []
