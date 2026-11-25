@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>
+      Unemployment model
+    </title>
+  </head>
+  <body>
+    <h1>
+      Unemployment model
+    </h1>
+    <section>
+      <h2>
+        Data
+      </h2>
+      <p>
+        The series are quarterly.
+      </p>
+      <div id="T3_1" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+        <table>
+          <thead>
+            <tr>
+              <td colspan="5">
+                Table T3.1. Series summary &lt;all&gt;
+              </td>
+            </tr>
+            <tr>
+              <th class="gt_left" colspan="1" rowspan="1">
+                Series
+              </th>
+              <th class="gt_right" colspan="1" rowspan="1">
+                Mean (pp)
+              </th>
+              <th class="gt_right" colspan="1" rowspan="1">
+                Share
+              </th>
+              <th class="gt_right" colspan="1" rowspan="1">
+                Observations
+              </th>
+              <th class="gt_left" colspan="1" rowspan="1">
+                Last
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="gt_left">
+                Unemployment | total
+              </td>
+              <td class="gt_right">
+                1,234.57
+              </td>
+              <td class="gt_right">
+                12.50%
+              </td>
+              <td class="gt_right">
+                1,500
+              </td>
+              <td class="gt_left">
+                2024-03-31
+              </td>
+            </tr>
+            <tr>
+              <td class="gt_left">
+                GDP growth &amp; more
+              </td>
+              <td class="gt_right">
+                -0.25
+              </td>
+              <td class="gt_right">
+                –
+              </td>
+              <td class="gt_right">
+                96
+              </td>
+              <td class="gt_left">
+                –
+              </td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="5">
+                Means over the whole sample.
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <figure id="F3_1">
+        <svg/>
+        <figcaption>
+          Figure F3.1. Unemployment rate
+        </figcaption>
+      </figure>
+    </section>
+    <section>
+      <h2>
+        Diagnostics
+      </h2>
+      <p class="dz-finding">
+        1 of 3 checks pass; the p-value is 0.04 &lt;strong&gt;.
+      </p>
+      <div id="T8_1" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+        <table>
+          <thead>
+            <tr>
+              <td colspan="7">
+                Table T8.1. Diagnostic checks
+              </td>
+            </tr>
+            <tr>
+              <th class="gt_left" colspan="1" rowspan="1">
+                Check
+              </th>
+              <th class="gt_right" colspan="1" rowspan="1">
+                Observed
+              </th>
+              <th class="gt_left" colspan="1" rowspan="1">
+                Rule
+              </th>
+              <th class="gt_right" colspan="1" rowspan="1">
+                Threshold
+              </th>
+              <th class="gt_left" colspan="1" rowspan="1">
+                Unit
+              </th>
+              <th class="gt_left" colspan="1" rowspan="1">
+                Result
+              </th>
+              <th class="gt_left" colspan="1" rowspan="1">
+                Reason
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="gt_left">
+                adf
+              </td>
+              <td class="gt_right">
+                0.20
+              </td>
+              <td class="gt_left">
+                &lt;
+              </td>
+              <td class="gt_right">
+                0.05
+              </td>
+              <td class="gt_left">
+              </td>
+              <td class="gt_left" style="color: #8A5A00;font-weight: bold;">
+                Overridden
+              </td>
+              <td class="gt_left">
+                Short sample; see section 4.
+              </td>
+            </tr>
+            <tr>
+              <td class="gt_left">
+                r2
+              </td>
+              <td class="gt_right">
+                0.91
+              </td>
+              <td class="gt_left">
+                &gt;=
+              </td>
+              <td class="gt_right">
+                0.50
+              </td>
+              <td class="gt_left">
+                share
+              </td>
+              <td class="gt_left" style="color: #1B7F3B;font-weight: normal;">
+                Pass
+              </td>
+              <td class="gt_left">
+              </td>
+            </tr>
+            <tr>
+              <td class="gt_left">
+                dw
+              </td>
+              <td class="gt_right">
+                0.40
+              </td>
+              <td class="gt_left">
+                &gt;
+              </td>
+              <td class="gt_right">
+                1.50
+              </td>
+              <td class="gt_left">
+              </td>
+              <td class="gt_left" style="color: #B00020;font-weight: bold;">
+                Fail
+              </td>
+              <td class="gt_left">
+              </td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="7">
+                Source: FRED; run run-7, data 0123456789ab, 2026-11-25.
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <section>
+        <h3>
+          Detail
+        </h3>
+        <p>
+          Nothing else.
+        </p>
+      </section>
+    </section>
+  </body>
+</html>
