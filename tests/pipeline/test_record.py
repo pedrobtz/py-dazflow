@@ -34,7 +34,7 @@ def defaults(schema, node=None, path=()):
 
 @pytest.fixture(scope="module")
 def record(ran_example):
-    return json.loads((ran_example / "reports" / "record.json").read_text())
+    return json.loads((ran_example / "reports" / "record.json").read_text(encoding="utf-8"))
 
 
 STEPS = ["ingest", "clean", "explore", "build", "select", "forecast"]

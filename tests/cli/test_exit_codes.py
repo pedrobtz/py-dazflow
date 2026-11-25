@@ -26,7 +26,7 @@ def test_the_codes_are_the_designs():
 def test_run_on_the_example_exits_0_and_writes_the_record(example):
     result = invoke("run", "-p", example)
     assert result.exit_code == 0, result.output
-    record = json.loads((example / "reports" / "record.json").read_text())
+    record = json.loads((example / "reports" / "record.json").read_text(encoding="utf-8"))
     assert record["run"]["status"] == "passed"
     assert record["run"]["steps"] == ["ingest", "clean", "explore", "build", "select", "forecast"]
 
@@ -55,7 +55,7 @@ def test_a_failed_gate_exits_2_and_the_run_stops_there(example):
     path.write_text(path.read_text().replace("min_history: 40", "min_history: 1000"))
     result = invoke("run", "-p", example)
     assert result.exit_code == 2, result.output
-    record = json.loads((example / "reports" / "record.json").read_text())
+    record = json.loads((example / "reports" / "record.json").read_text(encoding="utf-8"))
     assert record["run"]["status"] == "gate_failed"
     assert record["run"]["stopped_at"] == "ingest"
     assert list(record["results"]) == ["ingest"]

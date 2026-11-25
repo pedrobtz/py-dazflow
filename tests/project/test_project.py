@@ -131,9 +131,9 @@ def test_commented_yaml_describes_each_described_field():
 
 def test_a_step_command_carries_the_earlier_results_from_the_record(example):
     assert runner.invoke(app, ["run", "-p", str(example)]).exit_code == 0
-    first = json.loads((example / "reports" / "record.json").read_text())
+    first = json.loads((example / "reports" / "record.json").read_text(encoding="utf-8"))
     assert runner.invoke(app, ["explore", "-p", str(example)]).exit_code == 0
-    second = json.loads((example / "reports" / "record.json").read_text())
+    second = json.loads((example / "reports" / "record.json").read_text(encoding="utf-8"))
     assert second["run"]["steps"] == ["explore"]
     assert second["run"]["carried"] == ["ingest", "clean"]
     for step in ("ingest", "clean"):
@@ -210,7 +210,7 @@ def test_a_style_file_is_used_for_the_reports(example):
     proj = dz.project.load(example)
     proj.validate()
     proj.write(proj.run(stop="ingest"))
-    styled = (example / "reports" / "ingest" / "T1.1.md").read_text()
+    styled = (example / "reports" / "ingest" / "T1.1.md").read_text(encoding="utf-8")
     table = dz.pipeline.RunRecord.load(proj.record_path).result("ingest").artefacts["T1.1"]
     assert (
         dz.render.render(table, "markdown", style=example / "style.yaml").split("Source")[0]

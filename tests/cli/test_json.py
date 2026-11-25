@@ -80,22 +80,24 @@ def test_step_commands_print_the_libraries_results(example):
 
 def test_run_json_is_the_record_it_wrote(example):
     got = invoke("run", "-p", example, "--json")
-    assert got == json.loads((example / "reports" / "record.json").read_text())
+    assert got == json.loads((example / "reports" / "record.json").read_text(encoding="utf-8"))
     _, _, cl, ex = library(example)
     assert got["results"]["clean"] == cl.to_dict()
     close(got["results"]["explore"], ex.to_dict())
 
 
 def test_the_record_holds_the_same_results_as_the_step_folders(ran_example):
-    record = json.loads((ran_example / "reports" / "record.json").read_text())
+    record = json.loads((ran_example / "reports" / "record.json").read_text(encoding="utf-8"))
     for step in ("ingest", "clean", "explore", "build", "select", "forecast"):
-        folder = json.loads((ran_example / "reports" / step / "result.json").read_text())
+        folder = json.loads(
+            (ran_example / "reports" / step / "result.json").read_text(encoding="utf-8")
+        )
         assert folder == record["results"][step]
 
 
 @pytest.mark.parametrize("artefact", ["T1.1", "F1.1", "S2.1", "T3.3"])
 def test_show_json_is_the_artefact_in_the_record(ran_example, artefact):
-    record = json.loads((ran_example / "reports" / "record.json").read_text())
+    record = json.loads((ran_example / "reports" / "record.json").read_text(encoding="utf-8"))
     step = {"1": "ingest", "2": "clean", "3": "explore"}[artefact[1]]
     assert (
         invoke("show", artefact, "-p", ran_example, "--json")
