@@ -51,6 +51,9 @@ Document).
 2026-11-25, Stage 4: `src/dazflow/checks/` (seven checks on pointblank)
 and `steps/clean.py`.
 
+2026-11-25, Stage 5: `steps/explore.py` (profile, unit-root tests read
+into an order of integration, lag search, HAC screen, sign gate).
+
 ## Versions and dependents
 
 `v0.1.0` issue: see the roadmap header. Dependents: none.
@@ -119,6 +122,14 @@ To be written as stages land; see `.agents/design.md` §4 for the layers
   checks and `outlier_scores`). Import pointblank and statsmodels inside
   functions: `import dazflow` must stay light. A check never changes the
   data; `steps/clean.py` holds the treatments and their log.
+- `steps/explore.py`: the statistics are public functions in the step
+  module (`profile`, `unit_root`, `integration_order`, `lag_search`,
+  `screen`), with the readings `says_stationary` and `driver_checks` kept
+  pure so thresholds are tested on one number: reruns of arch and
+  statsmodels differ in the last bits. Import arch and statsmodels inside
+  functions. Catch arch's `InfeasibleTestException` by name (it is not a
+  `ValueError` in arch 7.0), never a bare `Exception`: under pytest's
+  `-W error` a warning would turn into a missing test.
 - Tests that need an extra carry `@pytest.mark.extra("<distribution>")`
   (`tests/conftest.py`), which skips only when the distribution is not
   installed, so a broken import fails instead of skipping.
