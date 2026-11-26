@@ -1,6 +1,6 @@
 [project]
 name = "dazflow"
-version = "0.1.0.dev0"
+version = "0.1.0"
 description = "A time-series modelling workflow whose every step returns tables, figures and findings ready for a model document."
 readme = "README.md"
 authors = [
@@ -28,7 +28,7 @@ dependencies = [
 ]
 keywords = ["time series", "forecasting", "econometrics", "model documentation", "stress testing"]
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 3 - Alpha",
     "Intended Audience :: Financial and Insurance Industry",
     "Intended Audience :: Science/Research",
     "Operating System :: OS Independent",

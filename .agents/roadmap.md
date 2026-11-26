@@ -72,7 +72,7 @@ checks something the stage introduces and later stages build on.
 | 12 | [Documentation site](#stage-12--documentation-site) | quick | [#14](https://github.com/pedrobtz/py-dazflow/issues/14) | [#32](https://github.com/pedrobtz/py-dazflow/pull/32) | 2026-11-26 |
 | 13 | [Assurance](#stage-13--assurance) | quick | [#15](https://github.com/pedrobtz/py-dazflow/issues/15) | [#43](https://github.com/pedrobtz/py-dazflow/pull/43) | 2026-11-26 |
 | 14 | [Full CI](#stage-14--full-ci) | full | [#16](https://github.com/pedrobtz/py-dazflow/issues/16) | [#45](https://github.com/pedrobtz/py-dazflow/pull/45) | 2026-11-26 |
-| 15 | [v0.1.0 readiness](#stage-15--v010-readiness) | full | [#17](https://github.com/pedrobtz/py-dazflow/issues/17) | | |
+| 15 | [v0.1.0 readiness](#stage-15--v010-readiness) | full | [#17](https://github.com/pedrobtz/py-dazflow/issues/17) | [#46](https://github.com/pedrobtz/py-dazflow/pull/46) | 2026-11-26 |
 | 16 | [Review](#stage-16--review) | full | [#18](https://github.com/pedrobtz/py-dazflow/issues/18) | | |
 
 ## Stage 0 — Package identity
@@ -943,6 +943,20 @@ run (45743758126) completed.
 
 **Design.** [§12](design.md#12-packages).
 
+**As built** (2026-11-26). The version is 0.1.0 (the only place it is
+written is `pyproject.toml`; nothing else asserted `0.1.0.dev0`), and the
+classifier moved from Pre-Alpha to Alpha. `.github/workflows/release.yml`
+builds the sdist and wheel and runs `twine check --strict` on every event;
+a `v*` tag must equal `v` + the version and publishes to PyPI (environment
+`pypi`); a manual dispatch publishes to TestPyPI (environment `testpypi`),
+never to PyPI, then installs that version from TestPyPI with its
+dependencies from PyPI into a clean environment and runs `dazflow
+--version`, `dazflow init` and `dazflow run`. A pull request that changes
+the workflow runs the build alone. Both publish jobs use
+`pypa/gh-action-pypi-publish` v1.14.3 by trusted publishing. The TestPyPI
+exit criterion waits for the TestPyPI pending publisher (being registered
+by the maintainer) and a dispatch after the merge.
+
 ## Stage 16 — Review
 
 **Issue.** [#18](https://github.com/pedrobtz/py-dazflow/issues/18), sub-issue of
@@ -1023,4 +1037,9 @@ No pull request closes this issue; it closes when both reviews are done.
 ## Blocking open questions
 
 - The PyPI release needs a trusted publisher on PyPI (repository
-  `pedrobtz/py-dazflow`, workflow `release.yml`, environment `pypi`).
+  `pedrobtz/py-dazflow`, workflow `release.yml`, environment `pypi`),
+  to be registered by the maintainer for
+  [#19](https://github.com/pedrobtz/py-dazflow/issues/19). The TestPyPI
+  pending publisher (same repository and workflow, environment `testpypi`)
+  is being registered by the maintainer; Stage 15's TestPyPI criterion
+  waits for it.
