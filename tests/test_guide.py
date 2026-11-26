@@ -79,11 +79,12 @@ def plugin_site(tmp_path, monkeypatch):
     monkeypatch.syspath_prepend(str(site))
     monkeypatch.setattr(models.registry, "_items", dict(models.registry._items))
     monkeypatch.setattr(models.registry, "_plugins_loaded", False)
-    before = set(sys.modules)
     yield site
-    for name in set(sys.modules) - before:
-        if not name.startswith(("dazflow", "_pytest")):
-            del sys.modules[name]
+    # Only the plugin's own module: dropping a module the run first imported
+    # (numpy, scipy, statsmodels...) makes its next import load a C extension
+    # a second time, which numpy refuses in a later test of the same worker.
+    for name in [m for m in sys.modules if m == "dazflow_drift" or m.startswith("dazflow_drift.")]:
+        del sys.modules[name]
     importlib.invalidate_caches()
 
 
