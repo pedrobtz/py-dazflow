@@ -28,7 +28,8 @@ record, replay and a Word document. Everything else is under
 
 - **`quick`**, under five minutes: `ruff check`, `ruff format --check`,
   and pytest in random order (pytest-randomly, seed printed) with
-  coverage, on Ubuntu, Python 3.13, latest dependencies.
+  coverage (at least 98% since Stage 14), on Ubuntu, Python 3.13, latest
+  dependencies.
 - **`full`**: pytest on Ubuntu and Windows × Python 3.12–3.14 and macOS ×
   3.12 and 3.14; a lowest-direct-dependencies job
   (`uv run --resolution lowest-direct`); a core-only job with no extras
@@ -70,7 +71,7 @@ checks something the stage introduces and later stages build on.
 | 11 | [Report and replay](#stage-11--report-and-replay) | quick | [#13](https://github.com/pedrobtz/py-dazflow/issues/13) | [#31](https://github.com/pedrobtz/py-dazflow/pull/31) | 2026-11-26 |
 | 12 | [Documentation site](#stage-12--documentation-site) | quick | [#14](https://github.com/pedrobtz/py-dazflow/issues/14) | [#32](https://github.com/pedrobtz/py-dazflow/pull/32) | 2026-11-26 |
 | 13 | [Assurance](#stage-13--assurance) | quick | [#15](https://github.com/pedrobtz/py-dazflow/issues/15) | [#43](https://github.com/pedrobtz/py-dazflow/pull/43) | 2026-11-26 |
-| 14 | [Full CI](#stage-14--full-ci) | full | [#16](https://github.com/pedrobtz/py-dazflow/issues/16) | | |
+| 14 | [Full CI](#stage-14--full-ci) | full | [#16](https://github.com/pedrobtz/py-dazflow/issues/16) | [#45](https://github.com/pedrobtz/py-dazflow/pull/45) | 2026-11-26 |
 | 15 | [v0.1.0 readiness](#stage-15--v010-readiness) | full | [#17](https://github.com/pedrobtz/py-dazflow/issues/17) | | |
 | 16 | [Review](#stage-16--review) | full | [#18](https://github.com/pedrobtz/py-dazflow/issues/18) | | |
 
@@ -894,6 +895,23 @@ fixed.
 
 **Design.** [§12](design.md#12-packages).
 
+**As built** (2026-11-26). The full runs on the Stage 7, 11, 12 and 13
+merges failed only in the lowest-dependencies job. The ARIMAX
+wrapper-equality difference was the drivers' memory layout: the wrapper's
+`X.copy()` is column-major on pandas 2.2.2, the direct call's frame
+row-major, and statsmodels 0.14.2's likelihood took another BLAS path for
+each, so the optimisers stopped up to 1e-4 apart on a flat likelihood.
+Reproduced in a Linux container with run 45736131073's seed; the forms now
+hold drivers row-major (D47), the tolerance stays 1e-10. The Stage 13 merge
+(run 45743745049) also failed that job with every test passing: syrupy 4.6
+counts the four snapshots matplotlib 3.8.4 skips (#42) as unused, so that
+job alone passes `--snapshot-warn-unused`. Replay across machines was
+measured (macOS and Linux, same versions): closed-form numbers agree to
+1e-14, ETS on a flat likelihood only to 6%, so the tolerance stays D43's and
+the gap moves to [#44](https://github.com/pedrobtz/py-dazflow/issues/44).
+Coverage reached 98.6%; the quick job fails below 98%. The first `Mutation`
+run (45743758126) completed.
+
 ## Stage 15 — v0.1.0 readiness
 
 **Issue.** [#17](https://github.com/pedrobtz/py-dazflow/issues/17), sub-issue of
@@ -996,8 +1014,11 @@ No pull request closes this issue; it closes when both reviews are done.
   - [#42](https://github.com/pedrobtz/py-dazflow/issues/42): four step-figure
     snapshots differ on matplotlib 3.8.4; they are compared on every other
     leg, and fixing them is a rendering change.
-  - The ARIMAX variation on the lowest dependencies and the cross-machine
-    replay tolerance are Stage 14's ([#16](https://github.com/pedrobtz/py-dazflow/issues/16)).
+  - [#44](https://github.com/pedrobtz/py-dazflow/issues/44): replay across
+    machines. Stage 14 measured it (D47): closed-form numbers agree to
+    1e-14, optimised forms on a flat likelihood only to their convergence
+    (ETS 6%), so no tolerance can be tested; replay is promised on the
+    record's machine.
 
 ## Blocking open questions
 
