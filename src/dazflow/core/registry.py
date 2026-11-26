@@ -31,9 +31,9 @@ class Registry:
 
     Parameters
     ----------
-    kind
+    kind : str
         What the registry holds, for messages: ``"model"``, ``"reader"``.
-    protocol
+    protocol : type, optional
         Optional `typing.Protocol` every component must have the members of.
 
     Examples
