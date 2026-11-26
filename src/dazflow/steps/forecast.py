@@ -496,14 +496,6 @@ def _scenarios(dataset: Dataset, plain: Dataset, select: Any) -> tuple[pd.DataFr
     return with_scen.scenarios, list(with_scen.severity)
 
 
-def _covered(paths: pd.DataFrame, end: pd.Period) -> int:
-    have = set(paths.index)
-    n = 0
-    while end + n + 1 in have:
-        n += 1
-    return n
-
-
 def run(
     dataset: Dataset,
     config: ForecastConfig | Mapping[str, Any] | None = None,
@@ -569,7 +561,7 @@ def run(
         severity, h = [UNCONDITIONAL], cfg.horizon
     else:
         labelled = [(label, scen.xs(label, level="scenario")) for label in severity]
-        cover = min(_covered(paths, end) for _, paths in labelled)
+        cover = min(readers.scenario_cover(paths, end) for _, paths in labelled)
         if cover == 0:
             raise _fail(
                 "a scenario has no period after the origin",

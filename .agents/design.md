@@ -706,6 +706,12 @@ are, at lag 0. The caller's dataset is not changed.
   yields one passing candidate or every failed attempt. `benchmarks`
   (default `naive`, `mean`) are always fitted. A form that cannot be
   fitted (`ModelError`) is recorded with its error and the next is tried.
+  A candidate's id is `<form>:<driver>+<driver>`, so each form is listed
+  once in `forms` (a second setting of one form is registered under its
+  own key), and a lag is 0 or more periods: both are refused as a
+  `ConfigError` when the configuration is read (2026-11-26, Stage 16,
+  #49, #50: two fits with one id collapse in select's tables and share
+  overrides; a negative lag fits on future driver values).
 - **Checks** (per candidate, `Candidate.gate`): `sign:<driver>`
   (coefficient times expected sign > 0, for a sign of -1 or 1),
   `significance:<driver>` (p <= `significance`, 0.05) and `vif` (largest
@@ -788,7 +794,8 @@ fingerprint, scenarios left out, must be build's) with any scenarios in
 - **Scenarios.** Each scored model is refitted from its record
   (`models.refit`, which checks the data's fingerprint) and forecast under
   every scenario, its drivers built by `Design.future` from the scenario's
-  paths in levels for the periods after the sample; the mean path is
+  paths in levels, over one horizon for every scenario: the periods every
+  scenario covers after the sample, contiguously (D49); the mean path is
   mapped back to the target's levels by `transforms.inverse` with the
   observed history (no bias correction: that is forecast's, §7.7). A
   model's `ordering.statistic` (mean) of each path is compared across
@@ -800,7 +807,9 @@ fingerprint, scenarios left out, must be build's) with any scenarios in
 - **Choice** (D38). `choice: {candidate, reason}` confirms the proposal or
   overrides it; the reason is required and not blank. Without it the
   proposal is used and `decision` is `proposed`. Benchmarks are compared,
-  never chosen.
+  never chosen. A chosen candidate whose evaluation failed is a
+  `SelectError` naming why, since its checks would have no scores or
+  projections to compare (2026-11-26, Stage 16, #47).
 - **Gate:** `confidence-set` (at least one candidate that passes every
   check is in the set) and, for the chosen model, `build` (its build
   checks that failed and were not overridden: 0), `benchmark` (scaled
@@ -1313,6 +1322,10 @@ when a package is adopted.
 | `io` | openpyxl, SQLAlchemy, pyarrow, polars | more readers |
 | `excel` | xlsxwriter | Excel artefacts |
 | `credit` | optbinning, scikit-learn | binning, AUC, PSI, migration |
+
+0.1.0 publishes only `io`, with openpyxl, pyarrow and polars (D48): no
+step of 0.1.0 imports any other package of this table, so the other extras,
+and SQLAlchemy in `io`, return with the stage that uses them.
 
 Stage 0 put these groups into `pyproject.toml` with lower bounds that
 resolve and install on Python 3.12 (2026-11-25). Two differ from the
@@ -1845,6 +1858,24 @@ Each statistical result needs an oracle, not just a passing run.
   counts as unused. (A tolerance chosen to pass two machines would be
   untested on the third; the same-machine replay is the reproducibility
   0.1.0 promises, §10.)
+
+- **D48.** 0.1.0 publishes only the `io` extra, with openpyxl, pyarrow
+  and polars; `panel`, `ml`, `fast`, `breaks`, `sensitivity`, `cube`,
+  `fetch`, `excel` and `credit`, and SQLAlchemy in `io`, are dropped from
+  `pyproject.toml` and return with the stage that uses them (2026-11-26,
+  Stage 16, #51: nothing in 0.1.0 imports their packages, so PyPI's
+  metadata would promise features that are not there, and an extra once
+  published cannot be removed without breaking someone's install). The
+  wheel carries `py.typed` (#52), since its public API is annotated.
+- **D49.** Select forecasts every scenario over one horizon, the number of
+  consecutive periods after the sample that every scenario covers
+  (`readers.scenario_cover`, shared with forecast and diagnose), rather
+  than refusing scenarios of unequal length (2026-11-26, Stage 16, #48:
+  §7.7 already sets forecast's default horizon so, and diagnose's
+  sensitivity horizon follows it, so select refusing them would stop a run
+  on input the later steps accept; a horizon per scenario made
+  `scenario-order` compare projections over different periods, so its
+  result could come from the lengths rather than from severity).
 
 ## 15 Build order
 

@@ -434,3 +434,63 @@ def test_a_scenarios_file_must_exist_and_name_its_label_column(tmp_path, built):
     path.write_text("date,a,b,c\n2020Q1,1,1,1\n")
     with pytest.raises(SelectError, match="no column 'scenario'"):
         select.run(plain, quick(scenarios={"path": str(path)}), build=b)
+
+
+def test_a_choice_that_could_not_be_evaluated_is_refused_with_its_reason(built):
+    # Chosen, a candidate with no evaluation has no scores or projections to check (#47).
+    ds, _ = built
+    b = build.run(
+        ds, {"max_size": 1, "forms": [{"form": "arimax", "config": {"order": [6, 0, 0]}}]}
+    )
+    cfg = quick(splitter_config={"initial": 8}, choice={"candidate": "arimax:a", "reason": "x"})
+    with pytest.raises(SelectError, match="'arimax:a' could not be evaluated") as info:
+        select.run(ds, cfg, build=b)
+    assert "needs at least" in info.value.observed
+    assert "evaluated candidate" in info.value.change
+    with pytest.raises(SelectError, match="could not be evaluated"):
+        select.run(ds.with_scenarios(None), {**cfg, "bounds": [None, 10]}, build=b)
+
+
+def test_scenarios_of_unequal_length_are_forecast_over_their_common_horizon(built):
+    # As forecast does (design §7.7), every scenario is forecast over the periods
+    # every scenario covers after the sample (#48, D49).
+    ds, b = built
+    frame = ds.scenarios
+    last = frame.xs("s2", level="scenario").index[-1]
+    short = frame.drop(index=[("s2", last - 2), ("s2", last - 1), ("s2", last)])
+    r = select.run(ds.with_scenarios(short, ds.severity), quick(), build=b)
+    end = ds.frame.index[-1]
+    common = [str(end + k) for k in range(1, 6)]
+    assert r.scenario_forecasts
+    assert all(list(f.forecast.periods) == common for f in r.scenario_forecasts)
+    figure = r.artefacts[select.IDS.figure("scenarios")]
+    assert list(figure.x[-5:]) == common
+    # `last` compares one period: every scenario's projection at the common end.
+    last_r = select.run(
+        ds.with_scenarios(short, ds.severity), quick(ordering={"statistic": "last"}), build=b
+    )
+    for x in last_r.ranking:
+        for s, v in x.statistics.items():
+            f = next(
+                f
+                for f in last_r.scenario_forecasts
+                if f.candidate == x.candidate and f.scenario == s
+            )
+            assert f.forecast.periods[-1] == common[-1] and v == f.levels[-1]
+
+
+def test_a_gap_in_a_scenario_ends_its_cover(built):
+    ds, b = built
+    frame = ds.scenarios
+    end = ds.frame.index[-1]
+    holed = frame.drop(index=[("s1", end + 4)])
+    r = select.run(ds.with_scenarios(holed, ds.severity), quick(), build=b)
+    assert {len(f.forecast.periods) for f in r.scenario_forecasts} == {3}
+
+
+def test_the_scenario_cover_counts_contiguous_periods_after_the_end():
+    end = pd.Period("2020Q4", freq="Q")
+    paths = pd.DataFrame(index=pd.period_range("2020Q2", "2021Q3", freq="Q"))
+    assert dz.readers.scenario_cover(paths, end) == 3
+    assert dz.readers.scenario_cover(paths.drop(index=pd.Period("2021Q2", freq="Q")), end) == 1
+    assert dz.readers.scenario_cover(paths, pd.Period("2021Q3", freq="Q")) == 0

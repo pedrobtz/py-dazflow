@@ -19,7 +19,8 @@ from candidate_data import close, levels
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 
 import dazflow as dz
-from dazflow import BuildError, ConfigError
+from dazflow import BuildError, ConfigError, ModelError
+from dazflow.models import Design
 from dazflow.steps import build
 
 NAMES = ["a", "b", "c", "d", "e", "f"]
@@ -409,3 +410,21 @@ def test_an_override_for_a_candidate_not_fitted_is_refused():
             levels(),
             {"forms": ["ols", "arimax"], "overrides": [{"check": "arimax:a/vif", "reason": "x"}]},
         )
+
+
+def test_a_repeated_form_is_a_config_error_naming_it():
+    # Two fits of one form would share the id <form>:<drivers> (#49).
+    with pytest.raises(ConfigError, match="each form is listed once") as info:
+        build.Config(forms=[{"form": "ols"}, {"form": "ols", "config": {"cov_type": "HAC"}}])
+    assert "ols" in str(info.value)
+    assert build.Config(forms=["ols", "arimax"]).forms[1].form == "arimax"
+
+
+def test_a_negative_lag_is_a_config_error_naming_the_driver():
+    # A lag of -1 would fit on next period's driver value (#50).
+    with pytest.raises(ConfigError, match="greater than or equal to 0") as info:
+        build.Config(lags={"a": -1})
+    assert "lags.a" in str(info.value)
+    assert build.Config(lags={"a": 0}).lags == {"a": 0}
+    with pytest.raises(ModelError):
+        Design(target="y", drivers=("a",), lags={"a": -1}, start="2000Q1", end="2001Q1")

@@ -16,7 +16,7 @@ from dazflow.core.config import Config
 from dazflow.core.errors import ReaderError
 from dazflow.readers._base import Frequency, from_frame
 
-__all__ = ["ScenarioInput", "read_scenarios"]
+__all__ = ["ScenarioInput", "read_scenarios", "scenario_cover"]
 
 
 class ScenarioInput(Config):
@@ -76,3 +76,17 @@ def read_scenarios(
         spec.severity if spec.severity is not None else list(dict.fromkeys(raw[spec.scenario]))
     )
     return pd.concat(parts), severity
+
+
+def scenario_cover(paths: pd.DataFrame, end: pd.Period) -> int:
+    """How many consecutive periods after `end` one scenario's `paths` (indexed by period) cover.
+
+    The count stops at the first missing period. Select, forecast and
+    diagnose forecast every scenario over the smallest cover among them
+    (design §7.6, §7.7, D49).
+    """
+    have = set(paths.index)
+    n = 0
+    while end + n + 1 in have:
+        n += 1
+    return n

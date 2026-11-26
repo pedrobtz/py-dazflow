@@ -728,14 +728,6 @@ def _backtest(
         ) from err
 
 
-def _covered(paths: pd.DataFrame, end: pd.Period) -> int:
-    have = set(paths.index)
-    n = 0
-    while end + n + 1 in have:
-        n += 1
-    return n
-
-
 def _scenarios(dataset: Dataset, plain: Dataset, select: Any) -> tuple[pd.DataFrame | None, list]:
     if dataset.scenarios is not None:
         return dataset.scenarios, list(dataset.severity)
@@ -775,7 +767,7 @@ def _sensitivity(
                 f"scenarios: {', '.join(map(str, severity))}",
                 "Set sensitivity.base to one of the scenarios, or leave it unset.",
             )
-        cover = min(_covered(scen.xs(s, level="scenario"), end) for s in severity)
+        cover = min(readers.scenario_cover(scen.xs(s, level="scenario"), end) for s in severity)
     else:
         base, cover = None, None
     if cfg.horizon is not None:

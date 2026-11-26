@@ -54,6 +54,9 @@ One row per boundary the package crosses, in each direction it crosses it.
 | Excel and Parquet readers | the frame written by pandas (openpyxl, pyarrow), read back equal | tests/readers/test_extras.py |
 | polars and pyarrow input | the same frame given as pandas: equal datasets | tests/readers/test_extras.py::test_polars_input_goes_through_narwhals |
 | scenario file reader | paths listed by hand, in file order | tests/readers/test_scenarios.py |
+| scenarios of unequal length into select | the common cover counted by hand: every scenario forecast over the same periods, `last` compared at one period (D49) | tests/steps/test_select.py::test_scenarios_of_unequal_length_are_forecast_over_their_common_horizon, tests/steps/test_select.py::test_the_scenario_cover_counts_contiguous_periods_after_the_end |
+| select `choice` of a candidate that could not be evaluated | a `SelectError` naming the candidate and the evaluation's error, never a check passed on a value not computed (#47) | tests/steps/test_select.py::test_a_choice_that_could_not_be_evaluated_is_refused_with_its_reason |
+| wheel marked as typed (PEP 561) | `py.typed` in the installed package and the `Typing :: Typed` classifier (#52) | tests/test_package.py::test_the_package_is_marked_as_typed |
 | transforms: forward then inverse | round trip to the input, hypothesis over each domain | tests/transforms/test_roundtrip.py |
 | Box-Cox transform | its definition in 50-digit decimal arithmetic; the estimated lambda equals scipy's maximum likelihood estimate | tests/transforms/test_roundtrip.py::test_boxcox_matches_its_definition_in_50_digit_arithmetic, tests/transforms/test_transform_oracles.py |
 | model forms against statsmodels | the direct statsmodels call on the same data (OLS, GLM, SARIMAX, ETSModel), rtol 1e-10 | tests/models/test_wrappers.py |
@@ -112,6 +115,8 @@ and just above it.
 | outlier detection on short series and small spikes | spikes flagged of 120, over 40 seeds | tests/checks/test_outliers.py::test_detection_rate_on_short_series_and_small_spikes |
 | outlier minimum length | years (two cycles; seven for annual) | tests/checks/test_outliers.py::test_a_series_shorter_than_two_cycles_is_not_applicable |
 | ingest minimum history | periods | tests/steps/test_ingest.py::test_history_gate_at_one_below_and_one_above_the_minimum |
+| build driver lag | periods: -1 refused, 0 accepted (#50) | tests/steps/test_build.py::test_a_negative_lag_is_a_config_error_naming_the_driver |
+| build forms, one of each | a repeated form refused, two forms accepted (#49) | tests/steps/test_build.py::test_a_repeated_form_is_a_config_error_naming_it |
 | explore alpha, votes, significance and sign | p-value, tests, coefficient | tests/steps/test_stationarity.py, tests/steps/test_screen.py |
 | build `max_vif` and significance; select confidence set, benchmark and scenario bounds | VIF, p-value, loss | gap #39 |
 | forecast jump-off gap | the origin residual | tests/steps/test_forecast.py::test_the_jump_off_gap_is_the_origin_residual_and_the_gate_straddles_it |

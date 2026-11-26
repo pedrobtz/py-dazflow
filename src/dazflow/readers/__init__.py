@@ -22,7 +22,7 @@ from dazflow.readers._base import (
     registry,
     require,
 )
-from dazflow.readers._scenarios import ScenarioInput, read_scenarios
+from dazflow.readers._scenarios import ScenarioInput, read_scenarios, scenario_cover
 
 __all__ = [
     "FREQUENCIES",
@@ -36,4 +36,5 @@ __all__ = [
     "register",
     "registry",
     "require",
+    "scenario_cover",
 ]

@@ -99,6 +99,7 @@ reference:
       - readers.register
       - readers.registry
       - readers.require
+      - readers.scenario_cover
   - title: "Quality checks"
     desc: "The checks clean runs; register your own the same way."
     contents:

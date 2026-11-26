@@ -29,7 +29,7 @@ from __future__ import annotations
 import itertools
 import math
 from collections.abc import Mapping, Sequence
-from typing import Any, ClassVar, Literal
+from typing import Annotated, Any, ClassVar, Literal
 
 import numpy as np
 import pandas as pd
@@ -120,8 +120,9 @@ class BuildConfig(Config):
         default_factory=dict,
         description="Expected sign by driver; replaces explore's and the metadata. 0: no check.",
     )
-    lags: dict[str, int] = Field(
-        default_factory=dict, description="Lag by driver, in periods; replaces explore's lags."
+    lags: dict[str, Annotated[int, Field(ge=0)]] = Field(
+        default_factory=dict,
+        description="Lag by driver, in periods (0 or more); replaces explore's lags.",
     )
     search: Literal["exhaustive", "stepwise"] = Field(
         "exhaustive",
@@ -166,6 +167,19 @@ class BuildConfig(Config):
         keys = [b.form for b in value]
         if len(set(keys)) != len(keys):
             raise ValueError(f"each benchmark form is listed once; given {keys}")
+        return value
+
+    @field_validator("forms")
+    @classmethod
+    def _each_form_once(cls, value: list[FormSpec]) -> list[FormSpec]:
+        # A candidate's id is <form>:<drivers>, so a form listed twice would
+        # give two fits one id (#49).
+        keys = [f.form for f in value]
+        if len(set(keys)) != len(keys):
+            raise ValueError(
+                f"each form is listed once, since a candidate's id is <form>:<drivers>; "
+                f"given {keys}. Register the second settings under another key"
+            )
         return value
 
 
