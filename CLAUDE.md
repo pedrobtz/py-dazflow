@@ -89,6 +89,10 @@ malformed-CSV tests and the step figures' SVG snapshots.
 row-major (D47), the coverage floor is 98% and replay across machines is
 measured, not promised (#44).
 
+2026-11-26, Stage 15: version 0.1.0, the 0.1.0 changelog and
+`.github/workflows/release.yml` (PyPI on a `v*` tag, TestPyPI on a manual
+dispatch, both by trusted publishing).
+
 ## Versions and dependents
 
 `v0.1.0` issue: see the roadmap header. Dependents: none.
