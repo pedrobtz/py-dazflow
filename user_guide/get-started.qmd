@@ -2,142 +2,217 @@
 title: Get started
 ---
 
-<!--
-Not run: written from .agents/design.md before the API exists.
-Replace the code with real runs, and paste their output, once the
-functions are in.
--->
-
-Building a time-series model means the same steps every time, and much
-of the effort goes into turning their output into a document. `dazflow`
-runs the steps from configuration and renders every result in one house
-style. This page follows one project, made by the command line, through
-the main ideas.
+Building a time-series model means the same steps every time, and much of
+the effort goes into turning their output into a document. `dazflow` runs
+the steps from configuration and renders every result in one house style.
+This page follows one project, the example that `dazflow init` writes,
+through the main ideas. Every output below is pasted from a real run.
 
 ```sh
 pip install dazflow
-dazflow init my-model
+dazflow init loss-rate
 ```
+
+```
+created loss-rate (11 files); next: dazflow validate -p loss-rate
+```
+
+The folder holds `project.yaml`, one file per step under `config/` with
+every setting written out at its default, and example data under
+`data/raw/`: a quarterly loss rate, two drivers (GDP growth and
+unemployment) and three scenarios for them.
+
+## Run the pipeline
 
 ```python
 import dazflow as dz
 
-project = dz.project.load("my-model")
+project = dz.project.load("loss-rate")
+run = project.run()
+run.passed, run.steps
 ```
 
-## Steps
-
-Each step is one call that takes data and its configuration, and a later
-step takes the earlier one's result as an argument instead of importing
-it. `project.run()` runs the pipeline in memory and writes nothing;
-`project.write(run)` writes the datasets, the reports and the run record.
-
-```python
-run = project.run()                 # ingest, clean, explore, build, select,
-                                    # forecast, diagnose, report
-ds = run.results["clean"].dataset   # the series in levels
-ex = dz.explore.run(ds, project.step_config("explore"))
-cand = dz.build.run(ds, project.step_config("build"), explore=ex)
-sel = dz.select.run(ds.with_scenarios(scenarios, severity), build=cand)
-sel.chosen, sel.decision            # proposed by the default rule until confirmed
-record = project.write(run)         # reports/<step>/, reports/document/, reports/record.json
+```
+(True, ('ingest', 'clean', 'explore', 'build', 'select', 'forecast', 'diagnose', 'report'))
 ```
 
-## Report and replay
-
-The report is built from the run record alone: a Word document with a
-contents list, a summary, every step's section in pipeline order and a
-configuration appendix, and a replay script beside it.
-
-```python
-doc = dz.report.run(record)
-doc.sections                        # Contents, Summary, one per step, two appendices
-```
-
-A replay reruns every step from the record and compares every recorded
-number with what it computes now: floats within a relative 1e-9, the rest
-exactly.
-
-```python
-replay = project.replay()
-replay.passed, replay.differences   # each difference: its path and both values
-```
+`project.run()` runs every step in memory and writes nothing. Each step's
+result is in `run.results`, by step name.
 
 ## Gates and findings
 
-Every step ends in checks against configured thresholds. A failed gate
-is reported, never hidden, and is overridden only with a reason written
-in configuration.
+Every step ends in a gate: checks of its numbers against thresholds set
+in configuration. Explore's checks that each driver has its expected sign
+and is significant:
 
 ```python
-ex.gate.passed
-ex.finding.text
+ex = run.results["explore"]
+ex.gate.passed, [c.name for c in ex.gate.checks]
 ```
 
-## Artefacts
+```
+(True, ['sign:gdp_growth', 'significance:gdp_growth', 'sign:unemployment', 'significance:unemployment'])
+```
 
-Tables and figures carry stable identifiers and are ready for a Word
-document.
+A finding is a sentence from a template, filled with the step's numbers:
 
 ```python
-dz.render.write(ex.artefacts["T3.3"], "screen.docx")
+print(ex.finding.text)
 ```
 
-The same project runs from the command line:
-
-```sh
-dazflow run --to select
-dazflow run --from forecast
-dazflow report                      # reports/document/document.docx
-dazflow replay                      # exit 0 when the run reproduces its record
-python reports/document/replay.py   # the same, without the command line
+```
+3 series explored; 2 were differenced to stationarity. 2 of 2 drivers are kept, 0 of them by override: each has its expected sign and a p-value of at most 0.05.
 ```
 
-## Your own components
-
-A model form, check or transform is registered once and then named in
-configuration like a built-in one.
+A failed check is reported, never hidden, and is accepted only with a
+reason written in configuration. The example's RESET test fails, and
+`config/diagnose.yaml` overrides it:
 
 ```python
-class ThetaConfig(dz.Config):
-    theta: float = 2.0
-
-@dz.models.register("theta")
-class Theta(dz.models.ModelForm):
-    Config = ThetaConfig
-
-    def _fit(self, y, X, spec) -> dz.models.FittedModel:
-        ...
+check = run.results["diagnose"].gate["reset"]
+check.status, round(check.observed, 3), check.threshold
 ```
 
-A form passes the same contract as the built-in ones:
-
-```python
-from dazflow.testing import ModelContract
-
-class TestTheta(ModelContract):
-    key = "theta"
+```
+('overridden', 0.027, 0.05)
 ```
 
-Any form, built-in or not, can be scored out of sample by refitting it at
-successive origins:
+```python
+print(check.override.reason)
+```
+
+```
+Example data: RESET rejects the linear form at 5% (p = 0.03). The series were made up for the example; a real model would revisit its functional form before use.
+```
+
+## Tables and figures
+
+Tables and figures carry stable identifiers, `T<step>.<n>` and
+`F<step>.<n>`, that survive reruns, so a document can cite them.
 
 ```python
-y, X = ...   # the target and its drivers, on a PeriodIndex
+sorted(ex.artefacts)
+```
+
+```
+['F3.1', 'S3.1', 'T3.1', 'T3.2', 'T3.3', 'T3.4']
+```
+
+```python
+print(dz.render.render(ex.artefacts["T3.3"], "markdown"))
+```
+
+```
+Table T3.3. Driver screen
+
+| Driver | Lag | Correlation | Coefficient | Standard error (HAC) | t | p-value | Observations | Expected sign | Observed sign | Result |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | :--- | :--- | :--- |
+| gdp\_growth | 0 | -0.84 | -0.15 | 0.01 | -18.95 | 0.00 | 119 | negative | negative | Pass |
+| unemployment | 0 | 0.90 | 0.39 | 0.02 | 21.49 | 0.00 | 119 | positive | positive | Pass |
+
+Each driver is regressed alone on the transformed target at the lag of strongest correlation (0 to 4); it is kept with its expected sign and a p-value of at most 0.05.
+```
+
+The same table renders to `html` and `docx`, and figures to `svg` and
+`png`, through `dz.render.render` and `dz.render.write`.
+
+## One step at a time
+
+Each step is also one call that takes a dataset and its configuration. A
+later step takes an earlier one's result as an argument rather than
+importing it, so any step can run on its own:
+
+```python
+ds = run.results["clean"].dataset
+ds.targets, ds.drivers
+```
+
+```
+(('loss_rate',), ('gdp_growth', 'unemployment'))
+```
+
+```python
+again = dz.explore.run(ds, project.step_config("explore"))
+again.finding.text == ex.finding.text
+```
+
+```
+True
+```
+
+Select scores every candidate out of sample and proposes one; the proposal
+stands until it is confirmed in `config/select.yaml`:
+
+```python
+sel = run.results["select"]
+sel.chosen, sel.decision
+```
+
+```
+('ols:gdp_growth+unemployment', 'proposed')
+```
+
+## Write, report and replay
+
+`project.write(run)` writes the datasets, every step's tables, figures and
+finding under `reports/<step>/`, the Word document, and the run record.
+
+```python
+record = project.write(run)
+record.run.status, sorted(p.name for p in (project.root / "reports").iterdir())
+```
+
+```
+('passed', ['build', 'clean', 'diagnose', 'document', 'explore', 'forecast', 'ingest', 'record.json', 'report', 'select'])
+```
+
+```python
+sorted(p.name for p in (project.root / "reports" / "document").iterdir())
+```
+
+```
+['document.docx', 'replay.py']
+```
+
+The document is built from the run record alone: a contents list, a
+summary, one section per step in pipeline order and the configuration in
+an appendix. A replay reruns every step from the record and compares every
+recorded number with what it computes now, floats within a relative 1e-9
+and everything else exactly:
+
+```python
+replay = project.replay()
+replay.passed, replay.differences
+```
+
+```
+(True, ())
+```
+
+## Score any form
+
+Any model form, built in or not, can be scored out of sample by refitting
+it at successive origins:
+
+```python
+y = ds.frame["loss_rate"]
+X = ds.frame[["gdp_growth", "unemployment"]]
 ev = dz.evaluation.evaluate(
     dz.models.get("ols")(), y, X,
-    splitter=dz.evaluation.Expanding(initial=40, horizon=4),
+    splitter=dz.evaluation.Expanding(initial=80, horizon=4),
 )
-ev.score("mase"), ev.score("coverage")
+round(ev.score("rmse"), 3), round(ev.score("coverage"), 3)
 ```
 
-```yaml
-# my-model/config/build.yaml
-forms: [ols, arimax, theta]
 ```
+(0.077, 0.919)
+```
+
+That is the root mean squared error over the four horizons, and the share
+of actual values inside the 95% interval.
 
 ## Where next
 
-The design, `.agents/design.md`, describes every step, the extension
-interfaces and the packages behind them. The API reference and a
-command-line guide come with the first stages.
+[Command line](command-line.qmd) runs the same project from a shell, and
+[Writing a plugin](writing-a-plugin.qmd) adds a model form of your own. The
+API reference lists every public name, by layer.

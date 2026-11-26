@@ -1,0 +1,205 @@
+---
+title: Writing a plugin
+---
+
+A model form, quality check, transform, reader or step is registered once
+under a key, and then named in configuration like a built-in one. This page
+adds a model form, a random walk with drift, in a package of its own; the
+other kinds register the same way, through their own `register` decorator.
+Every output below is pasted from a real run.
+
+## The form
+
+A form subclasses `dz.models.ModelForm` and sets its `Config` and `_fit`.
+`_fit` returns a `dz.models.FittedModel` holding the parameters, their
+covariance and the fitted values; the fitted model's `_predict` returns the
+mean and, for each interval level, the lower and upper bounds.
+`@dz.models.register("drift")` adds it to `dz.models.registry` under the key
+that configuration names it by.
+
+```python
+# dazflow_drift.py
+import numpy as np
+import pandas as pd
+from scipy.stats import norm
+
+import dazflow as dz
+
+
+class DriftConfig(dz.Config):
+    """The drift form has no parameters of its own."""
+
+
+class FittedDrift(dz.models.FittedModel):
+    def _predict(self, h, X_future, levels):
+        steps = np.arange(1, h + 1)
+        mean = self._y.iloc[-1] + self.params["drift"] * steps
+        sd = np.sqrt(self.params["sigma2"] * steps)
+        half = [norm.ppf(0.5 + level / 2) * sd for level in levels]
+        return mean, [mean - w for w in half], [mean + w for w in half]
+
+
+@dz.models.register("drift")
+class Drift(dz.models.ModelForm):
+    """A random walk with drift: y[t] = y[t-1] + drift + e[t]."""
+
+    Config = DriftConfig
+
+    def _fit(self, y, X, spec):
+        change = y.diff().dropna()
+        drift = change.mean()
+        sigma2 = ((change - drift) ** 2).mean()
+        n = len(change)
+        names = ["drift", "sigma2"]
+        return FittedDrift(
+            spec,
+            y,
+            None,
+            params=pd.Series([drift, sigma2], index=names),
+            cov_params=pd.DataFrame(
+                np.diag([sigma2 / n, 2 * sigma2**2 / n]), index=names, columns=names
+            ),
+            fitted_values=y.shift(1).iloc[1:] + drift,
+        )
+```
+
+The form takes no drivers (`drivers` is `False` by default), so `fit`
+refuses any. A form that takes them sets `drivers = True` and receives them
+as `X`.
+
+## Registering it
+
+In a script or a notebook, `import dazflow_drift` runs the decorator and the
+form is there. For every project to find it without an import, the package
+declares the module in the `dazflow.plugins` entry-point group:
+
+```toml
+# pyproject.toml of the plugin's package
+[project]
+name = "dazflow-drift"
+version = "0.1.0"
+dependencies = ["dazflow"]
+
+[project.entry-points."dazflow.plugins"]
+drift = "dazflow_drift"
+```
+
+Once the package is installed, a registry's first lookup imports every
+module in the group, so the form is found by its key:
+
+```python
+import dazflow as dz
+
+dz.models.registry.keys()
+```
+
+```
+('arimax', 'drift', 'ets', 'glm', 'mean', 'naive', 'ols', 'seasonal_naive')
+```
+
+## Using it
+
+The form fits and forecasts like a built-in one. On the example project's
+loss rate:
+
+```python
+project = dz.project.load("loss-rate")
+y = dz.ingest.run(project.step_config("ingest"), root=project.root).dataset.frame["loss_rate"]
+fit = dz.models.get("drift")().fit(y)
+fit.params.round(4).to_dict()
+```
+
+```
+{'drift': 0.0003, 'sigma2': 0.0098}
+```
+
+```python
+print(fit.predict(4).frame().round(3))
+```
+
+```
+         mean  lower_0.8  upper_0.8  lower_0.95  upper_0.95
+2025Q1  2.016      1.889      2.143       1.822       2.211
+2025Q2  2.017      1.837      2.196       1.742       2.291
+2025Q3  2.017      1.797      2.237       1.680       2.354
+2025Q4  2.017      1.763      2.271       1.629       2.406
+```
+
+It is scored out of sample against the naive random walk the same way:
+
+```python
+splitter = dz.evaluation.Expanding(initial=80, horizon=4)
+{
+    key: round(dz.evaluation.evaluate(dz.models.get(key)(), y, splitter=splitter).score("rmse"), 4)
+    for key in ["naive", "drift"]
+}
+```
+
+```
+{'naive': 0.1487, 'drift': 0.1518}
+```
+
+In a project, configuration names it. A form without drivers is a
+benchmark, so it goes into `config/build.yaml` beside the built-in ones:
+
+```yaml
+# loss-rate/config/build.yaml
+benchmarks:
+  - form: naive
+    config: {}
+  - form: mean
+    config: {}
+  - form: drift
+    config: {}
+```
+
+```python
+run = project.run(stop="build")
+[(c.id, c.role) for c in run.results["build"].candidates]
+```
+
+```
+[('naive', 'benchmark'), ('mean', 'benchmark'), ('drift', 'benchmark'), ('ols:gdp_growth', 'candidate'), ('ols:unemployment', 'candidate'), ('ols:gdp_growth+unemployment', 'candidate')]
+```
+
+Select then scores it with the other candidates, and the run record keeps
+its specification and parameters, so `dazflow replay` refits it.
+
+## The contract
+
+`dazflow.testing.ModelContract` holds the tests every form passes, built-in
+or not: it is found by its key, it is built from its configuration, its fit
+leaves the data unchanged, its forecast covers the horizon with nested
+intervals, a refit from the stored record repeats the fit, and drivers are
+used or refused. A subclass names the key:
+
+```python
+# tests/test_drift.py
+from dazflow.testing import ModelContract
+
+
+class TestDrift(ModelContract):
+    key = "drift"
+```
+
+```sh
+pytest tests/test_drift.py -v
+```
+
+```
+tests/test_drift.py::TestDrift::test_key_is_registered PASSED            [ 10%]
+tests/test_drift.py::TestDrift::test_lookup_returns_the_registered_component PASSED [ 20%]
+tests/test_drift.py::TestDrift::test_component_follows_the_protocol PASSED [ 30%]
+tests/test_drift.py::TestDrift::test_config_is_a_dazflow_config PASSED   [ 40%]
+tests/test_drift.py::TestDrift::test_form_is_built_from_its_config PASSED [ 50%]
+tests/test_drift.py::TestDrift::test_fit_returns_a_fitted_model PASSED   [ 60%]
+tests/test_drift.py::TestDrift::test_predict_covers_the_horizon_with_nested_intervals PASSED [ 70%]
+tests/test_drift.py::TestDrift::test_fit_leaves_its_inputs_unchanged PASSED [ 80%]
+tests/test_drift.py::TestDrift::test_refit_from_the_stored_record_repeats_the_fit PASSED [ 90%]
+tests/test_drift.py::TestDrift::test_drivers_are_used_or_refused PASSED  [100%]
+============================== 10 passed in 2.32s ==============================
+```
+
+The contract fits the form on `dazflow.testing.sample_series()`, a quarterly
+share with two drivers. A subclass can set `config` (the form's parameters
+under test), `sample()` (other data) and `refit_tolerance`.
