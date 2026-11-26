@@ -81,6 +81,10 @@ every 0.1.0 step.
 `user_guide/`, `.github/workflows/docs.yml`), deployed to
 <https://pedrobtz.github.io/py-dazflow/>.
 
+2026-11-26, Stage 13: `.agents/assurance.md`, mutation testing (mutmut,
+`.github/workflows/mutation.yml`, weekly), hypothesis profiles, the
+malformed-CSV tests and the step figures' SVG snapshots.
+
 ## Versions and dependents
 
 `v0.1.0` issue: see the roadmap header. Dependents: none.
@@ -102,6 +106,8 @@ uv add '<pkg>>=<lowest>'      # a core dependency; then commit uv.lock
 uv add --optional <extra> '<pkg>>=<lowest>'   # a package in an extra
 uv add --dev '<pkg>>=<lowest>'                # a dev-group tool
 uv run --resolution lowest-direct --isolated --all-extras --python 3.12 pytest
+uv run --all-extras mutmut run   # mutation testing (slow; [tool.mutmut]); then `mutmut results`
+HYPOTHESIS_PROFILE=full uv run pytest   # ten times the hypothesis examples, as the full profile
 uv run --python 3.13 --with great-docs==0.17.0 great-docs build    # site into great-docs/_site
 uv run --python 3.13 --with great-docs==0.17.0 great-docs preview  # serve it locally
 ```
@@ -288,10 +294,22 @@ contract suite, `dazflow.testing`, that every component passes. Tests live
 under `tests/<package>/`. `tests/core/test_fingerprint.py` holds stored
 SHA-256 values that every full-profile leg must reproduce.
 
+`.agents/assurance.md` names the oracle test of every boundary, object and
+threshold (design D46); a new one gets a row, or a `gap #<issue>` row with
+an issue labelled `gap`. Hypothesis reads `HYPOTHESIS_PROFILE` (`quick`,
+the default; `full` in the full profile; `mutation`), set in
+`tests/conftest.py`. mutmut (`[tool.mutmut]` in `pyproject.toml`) mutates
+`core/`, `transforms/` and `evaluation/` against their own test folders;
+it skips decorated functions, so arithmetic that must be mutated lives in a
+plain function the property calls (`core/gate.py`).
+
 Rendering snapshots live in `tests/render/__snapshots__/` and must match
 on every full-profile leg, lowest-direct included. Markdown is compared
 exactly, HTML as a normalised tree and SVG with a tolerance
-(`tests/render/snapshot_helpers.py`, D25). Regenerate with
+(`tests/render/snapshot_helpers.py`, D25). The step figures'
+snapshots (`tests/render/test_step_figures.py`) are drawn from the example
+project's run, so a change to a step's figure or to the example changes
+them. Regenerate with
 `uv run pytest tests/render --snapshot-update`, then check the
 lowest-direct run still passes before committing.
 

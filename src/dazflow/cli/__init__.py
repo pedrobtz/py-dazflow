@@ -286,13 +286,13 @@ def _step_command(name: str) -> Callable[..., None]:
 
 
 def _step_names() -> tuple[str, ...]:
-    from dazflow.steps import registry
+    from dazflow.steps import _BUILT_IN, registry
 
     try:
         return registry.keys()
     except PluginError as err:  # a broken plugin: the built-in commands still work
         print(f"warning: {err}", file=sys.stderr)
-        return ("ingest", "clean", "explore")
+        return tuple(_BUILT_IN)
 
 
 for _name in _step_names():

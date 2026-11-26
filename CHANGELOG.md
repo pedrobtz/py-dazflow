@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Fixed: with a plugin that fails to load, `dazflow` kept only the
+  `ingest`, `clean` and `explore` step commands; it now keeps every
+  built-in step's command, and still warns naming the plugin.
+- Fixed: on pandas 2, a date before 1677 or after 2262 in a file or frame
+  raised pandas' `OutOfBoundsDatetime` instead of a `ReaderError` (#37).
 - Documentation site at <https://pedrobtz.github.io/py-dazflow/>: the
   README as its home page, an API reference listing every public name by
   layer, and three guide pages, Get started (run on the example project),

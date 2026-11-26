@@ -1,5 +1,7 @@
 """The csv reader and the date rules every reader shares."""
 
+import datetime as dt
+
 import pandas as pd
 import pytest
 
@@ -184,3 +186,17 @@ def test_a_file_that_does_not_parse_is_a_reader_error(tmp_path):
         rd.read({"path": str(path), "options": {"encoding": "latin-1"}}).frame["x"].iloc[0]
         == "café"
     )
+
+
+@pytest.mark.parametrize(
+    "frame",
+    [
+        pd.DataFrame({"d": ["1000", "2000-01-01"], "x": [1.0, 2.0]}),
+        pd.DataFrame({"d": ["3000", "2000-01-01"], "x": [1.0, 2.0]}),
+        pd.DataFrame({"d": [dt.date(1000, 1, 1), dt.date(2000, 1, 1)], "x": [1.0, 2.0]}),
+    ],
+)
+def test_37_dates_outside_pandas_nanosecond_range_are_a_reader_error(frame):
+    # On pandas 2, these dates overflow its nanosecond timestamps (issue #37).
+    with pytest.raises(ReaderError):
+        rd.from_frame(frame, date="d")

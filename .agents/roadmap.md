@@ -69,7 +69,7 @@ checks something the stage introduces and later stages build on.
 | 10 | [Diagnose](#stage-10--diagnose) | quick | [#12](https://github.com/pedrobtz/py-dazflow/issues/12) | [#30](https://github.com/pedrobtz/py-dazflow/pull/30) | 2026-11-25 |
 | 11 | [Report and replay](#stage-11--report-and-replay) | quick | [#13](https://github.com/pedrobtz/py-dazflow/issues/13) | [#31](https://github.com/pedrobtz/py-dazflow/pull/31) | 2026-11-26 |
 | 12 | [Documentation site](#stage-12--documentation-site) | quick | [#14](https://github.com/pedrobtz/py-dazflow/issues/14) | [#32](https://github.com/pedrobtz/py-dazflow/pull/32) | 2026-11-26 |
-| 13 | [Assurance](#stage-13--assurance) | quick | [#15](https://github.com/pedrobtz/py-dazflow/issues/15) | | |
+| 13 | [Assurance](#stage-13--assurance) | quick | [#15](https://github.com/pedrobtz/py-dazflow/issues/15) | [#43](https://github.com/pedrobtz/py-dazflow/pull/43) | 2026-11-26 |
 | 14 | [Full CI](#stage-14--full-ci) | full | [#16](https://github.com/pedrobtz/py-dazflow/issues/16) | | |
 | 15 | [v0.1.0 readiness](#stage-15--v010-readiness) | full | [#17](https://github.com/pedrobtz/py-dazflow/issues/17) | | |
 | 16 | [Review](#stage-16--review) | full | [#18](https://github.com/pedrobtz/py-dazflow/issues/18) | | |
@@ -843,6 +843,29 @@ their gaps are filed.
 
 **Design.** [§13](design.md#13-testing-and-assurance).
 
+**As built** (2026-11-26). `.agents/assurance.md` keeps the template's
+headings and declares `untrusted-input`, `spec`, `lifecycle` and `emits`;
+the R-only checks are left out, `fuzz` is hypothesis in the quick job and
+`mutation` the new `Mutation` workflow (weekly and on dispatch, never on a
+pull request). mutmut 3.8.1 is in the dev group; it mutates `core/`,
+`transforms/` and `evaluation/` against `tests/core`, `tests/transforms`
+and `tests/evaluation` only, in file order (`-p no:randomly`, no xdist),
+which takes about five minutes locally (D46). It skips decorated functions,
+so the gate arithmetic moved from the `Check` and `Gate` properties into
+plain functions, behaviour unchanged. The first run left 886 survivors of
+2,919 mutants; 235 meant a missing oracle and are killed by the new tests
+(`tests/core/test_core_oracles.py`, `tests/transforms/test_transform_oracles.py`
+and the evaluation tests). The rest are tracked by gap issues (see After
+0.1.0). Hypothesis has `quick`, `full` and `mutation` profiles, chosen by
+`HYPOTHESIS_PROFILE` in `ci.yml`. The Stage 4 to 12 open points: the
+outlier check's detection rate on 10 years of quarters and on 6 sd spikes
+is asserted over 40 seeds; the ten step figures have SVG snapshots taken
+from the example's run; the diagnose refit-failure branch is reachable
+with an inconsistent select result and is tested; the CLI's broken-plugin
+fallback is tested, and kept only three step commands, now every built-in
+step (a fix). The `--from` and stale-folder questions, `dazflow plugins`
+and the unformatted floats are issues, not changed here.
+
 ## Stage 14 — Full CI
 
 **Issue.** [#16](https://github.com/pedrobtz/py-dazflow/issues/16), sub-issue of
@@ -950,6 +973,31 @@ No pull request closes this issue; it closes when both reviews are done.
 - [§12.3](design.md#123-candidate-plugin-backends) plugin backends, each a
   separate package.
 - [§16](design.md#16-later) MCP server, forms interface, agent layer.
+- Assurance gaps left by Stage 13 (`gap` rows of `.agents/assurance.md`;
+  2026-11-26). Each is a missing test, not a known wrong result, and none
+  blocks the 0.1.0 path; the Review stage (16) may pull any of them
+  forward.
+  - [#33](https://github.com/pedrobtz/py-dazflow/issues/33), [#34](https://github.com/pedrobtz/py-dazflow/issues/34):
+    `run --from` reusing the record's configuration, and stale step folders.
+    Behaviour questions that need a decision, not a test.
+  - [#35](https://github.com/pedrobtz/py-dazflow/issues/35), [#36](https://github.com/pedrobtz/py-dazflow/issues/36):
+    `dazflow plugins` without models, metrics and splitters; findings
+    printed with unformatted floats. Output of the command line, not a
+    result; the library's registries and rendered findings are right.
+  - [#38](https://github.com/pedrobtz/py-dazflow/issues/38): the reach of
+    the reader fuzz tests; Stage 14 sets the package's coverage floor first.
+  - [#39](https://github.com/pedrobtz/py-dazflow/issues/39): straddles of
+    build's and select's thresholds; their checks go through the straddled
+    `Check` arithmetic, and their values are compared with statsmodels.
+  - [#40](https://github.com/pedrobtz/py-dazflow/issues/40),
+    [#41](https://github.com/pedrobtz/py-dazflow/issues/41): mutation
+    survivors in error text and the rest, read and listed; the scheduled run
+    reports them weekly.
+  - [#42](https://github.com/pedrobtz/py-dazflow/issues/42): four step-figure
+    snapshots differ on matplotlib 3.8.4; they are compared on every other
+    leg, and fixing them is a rendering change.
+  - The ARIMAX variation on the lowest dependencies and the cross-machine
+    replay tolerance are Stage 14's ([#16](https://github.com/pedrobtz/py-dazflow/issues/16)).
 
 ## Blocking open questions
 

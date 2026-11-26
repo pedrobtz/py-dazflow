@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import math
-import operator
 from collections.abc import Iterable, Mapping
 from typing import Any, ClassVar, Literal
 
@@ -16,7 +15,33 @@ __all__ = ["Check", "Comparison", "Gate", "Override"]
 
 Comparison = Literal["<", "<=", ">", ">="]
 
-_OPS = {"<": operator.lt, "<=": operator.le, ">": operator.gt, ">=": operator.ge}
+
+# The gate arithmetic is plain functions, not the properties that call them:
+# mutmut skips decorated functions, and these are what its scheduled run
+# must reach (design D46).
+
+
+def _passes(observed: float, op: str, threshold: float) -> bool:
+    """`observed <op> threshold`; a missing (NaN) observed value fails."""
+    if math.isnan(observed):
+        return False
+    if op == "<":
+        return observed < threshold
+    if op == "<=":
+        return observed <= threshold
+    if op == ">":
+        return observed > threshold
+    return observed >= threshold
+
+
+def _status(passed: bool, overridden: bool) -> Literal["pass", "fail", "overridden"]:
+    if passed:
+        return "pass"
+    return "overridden" if overridden else "fail"
+
+
+def _with_status(checks: Iterable[Check], status: str) -> tuple[Check, ...]:
+    return tuple(c for c in checks if c.status == status)
 
 
 class Override(DazflowModel):
@@ -79,15 +104,13 @@ class Check(DazflowModel):
     @property
     def passed(self) -> bool:
         """Whether the observed value is within the threshold, ignoring any override."""
-        return not math.isnan(self.observed) and _OPS[self.op](self.observed, self.threshold)
+        return _passes(self.observed, self.op, self.threshold)
 
     @computed_field
     @property
     def status(self) -> Literal["pass", "fail", "overridden"]:
         """``pass``, ``fail``, or ``overridden`` (failed, and accepted with a reason)."""
-        if self.passed:
-            return "pass"
-        return "overridden" if self.override is not None else "fail"
+        return _status(self.passed, self.override is not None)
 
 
 class Gate(DazflowModel):
@@ -147,17 +170,17 @@ class Gate(DazflowModel):
     @property
     def passed(self) -> bool:
         """Every check passed or was overridden with a reason."""
-        return all(c.status != "fail" for c in self.checks)
+        return not _with_status(self.checks, "fail")
 
     @property
     def failed(self) -> tuple[Check, ...]:
         """The checks that failed and were not overridden."""
-        return tuple(c for c in self.checks if c.status == "fail")
+        return _with_status(self.checks, "fail")
 
     @property
     def overridden(self) -> tuple[Check, ...]:
         """The checks that failed and were accepted by an override."""
-        return tuple(c for c in self.checks if c.status == "overridden")
+        return _with_status(self.checks, "overridden")
 
     def __getitem__(self, name: str) -> Check:
         for c in self.checks:
