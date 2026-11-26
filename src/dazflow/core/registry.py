@@ -23,18 +23,18 @@ def _protocol_members(protocol: type) -> tuple[str, ...]:
 class Registry:
     """Components of one kind, looked up by the key configuration names them by.
 
+    Components are added with the `register` decorator, or by a third-party
+    package through the ``dazflow.plugins`` entry-point group. Each entry
+    point names a module (``name = package.module``, or ``package.module:attr``);
+    loading it imports the module, whose decorators register its components.
+    Entry points are loaded on the registry's first lookup, once.
+
     Parameters
     ----------
     kind
         What the registry holds, for messages: ``"model"``, ``"reader"``.
     protocol
         Optional `typing.Protocol` every component must have the members of.
-
-    Components are added with the `register` decorator, or by a third-party
-    package through the ``dazflow.plugins`` entry-point group. Each entry
-    point names a module (``name = package.module``, or ``package.module:attr``);
-    loading it imports the module, whose decorators register its components.
-    Entry points are loaded on the registry's first lookup, once.
 
     Examples
     --------

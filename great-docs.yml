@@ -1,0 +1,383 @@
+# Great Docs configuration: https://posit-dev.github.io/great-docs/
+# The site's home page is README.md; guide pages live in user_guide/.
+# Every name in a public module's __all__ belongs to one reference group
+# (tests/test_docs.py checks it); an alias such as `ingest.Config` is
+# documented under its long name.
+
+display_name: dazflow
+parser: numpy
+dynamic: true
+site_url: https://pedrobtz.github.io/py-dazflow/
+github_style: icon
+
+authors:
+  - name: pedrobtz
+    role: Author
+    github: pedrobtz
+
+user_guide:
+  - section: Guide
+    contents:
+      - get-started.qmd
+      - command-line.qmd
+      - writing-a-plugin.qmd
+
+reference:
+  - title: "Core: data and configuration"
+    desc: "The dataset that passes between steps, configuration, and the registries every component joins."
+    contents:
+      - ENTRY_POINT_GROUP
+      - FINGERPRINT_FORMAT
+      - STEP_NUMBERS
+      - Config
+      - Dataset
+      - LogEntry
+      - Registry
+      - SeriesMeta
+  - title: "Core: results, gates and findings"
+    desc: "What every step returns: its checks, gate, overrides and finding."
+    contents:
+      - Check
+      - Comparison
+      - Finding
+      - Gate
+      - Override
+      - StepResult
+  - title: "Core: artefacts"
+    desc: "Tables and figures as data, with stable identifiers."
+    contents:
+      - Artefact
+      - ArtefactIds
+      - Column
+      - Figure
+      - Layer
+      - Source
+      - Table
+  - title: "Core: errors"
+    desc: "Every error dazflow raises is a `DazflowError`."
+    contents:
+      - ArtefactError
+      - BuildError
+      - CheckError
+      - CleanError
+      - ConfigError
+      - DatasetError
+      - DazflowError
+      - DiagnoseError
+      - DuplicateKeyError
+      - EvaluationError
+      - ExploreError
+      - FindingError
+      - ForecastError
+      - GateError
+      - IngestError
+      - MissingExtraError
+      - ModelError
+      - PipelineError
+      - PluginError
+      - ProjectError
+      - ReaderError
+      - RecordError
+      - RegistryError
+      - RenderError
+      - ReportError
+      - ResultError
+      - SelectError
+      - TransformError
+      - UnknownKeyError
+  - title: "Readers"
+    desc: "Read input files and frames into a dataset's calendar."
+    contents:
+      - readers.FREQUENCIES
+      - readers.ReadSpec
+      - readers.Reader
+      - readers.ScenarioInput
+      - readers.from_frame
+      - readers.get
+      - readers.read
+      - readers.read_scenarios
+      - readers.register
+      - readers.registry
+      - readers.require
+  - title: "Quality checks"
+    desc: "The checks clean runs; register your own the same way."
+    contents:
+      - checks.CheckConfig
+      - checks.Context
+      - checks.Downturn
+      - checks.Level
+      - checks.Outcome
+      - checks.QualityCheck
+      - checks.Test
+      - checks.Units
+      - checks.evaluate
+      - checks.get
+      - checks.outlier_scores
+      - checks.register
+      - checks.registry
+  - title: "Transforms"
+    desc: "Named, invertible transforms recorded as text."
+    contents:
+      - transforms.Transform
+      - transforms.TransformSpec
+      - transforms.apply
+      - transforms.consumed
+      - transforms.forward
+      - transforms.get
+      - transforms.inverse
+      - transforms.parse
+      - transforms.register
+      - transforms.registry
+  - title: "Model forms"
+    desc: "The model forms, the protocol a new form follows, and the stored model record."
+    contents:
+      - models.DEFAULT_LEVELS
+      - models.RECORD_FORMAT
+      - models.TREND
+      - models.Design
+      - models.Fitted
+      - models.FittedModel
+      - models.Forecast
+      - models.Model
+      - models.ModelForm
+      - models.ModelRecord
+      - models.ModelSpec
+      - models.Sample
+      - models.fingerprint
+      - models.get
+      - models.newey_west_lags
+      - models.refit
+      - models.register
+      - models.registry
+      - models.season_length
+  - title: "Evaluation"
+    desc: "Rolling-origin evaluation: splitters, metrics and scores."
+    contents:
+      - evaluation.DEFAULT_METRICS
+      - evaluation.MAE
+      - evaluation.MASE
+      - evaluation.RMSE
+      - evaluation.Coverage
+      - evaluation.Evaluation
+      - evaluation.EvaluationRow
+      - evaluation.Expanding
+      - evaluation.Fold
+      - evaluation.Metric
+      - evaluation.Rolling
+      - evaluation.Score
+      - evaluation.Splitter
+      - evaluation.evaluate
+      - evaluation.metrics
+      - evaluation.splitters
+  - title: "Rendering"
+    desc: "House-style tables, figures and Word documents."
+    contents:
+      - render.HOUSE_MPLSTYLE
+      - render.SUFFIXES
+      - render.Captions
+      - render.Dates
+      - render.Document
+      - render.Figures
+      - render.Fonts
+      - render.Mark
+      - render.Marks
+      - render.Numbers
+      - render.Page
+      - render.Renderable
+      - render.Renderer
+      - render.Section
+      - render.Style
+      - render.Word
+      - render.caption_text
+      - render.finding_text
+      - render.format_cell
+      - render.format_date
+      - render.format_number
+      - render.load_style
+      - render.render
+      - render.renderers
+      - render.source_text
+      - render.to_great_table
+      - render.write
+  - title: "Steps"
+    desc: "The step registry and the protocol a step follows."
+    contents:
+      - steps.Step
+      - steps.registry
+  - title: "Step: ingest"
+    desc: "Read the inputs and put every series on one calendar."
+    contents:
+      - ingest.IDS
+      - ingest.IngestConfig
+      - ingest.IngestResult
+      - ingest.Input
+      - ingest.SeriesSpec
+      - ingest.run
+  - title: "Step: clean"
+    desc: "Data-quality checks, configured treatments and their log."
+    contents:
+      - clean.IDS
+      - clean.CleanConfig
+      - clean.CleanResult
+      - clean.Exclude
+      - clean.Fill
+      - clean.Interpolate
+      - clean.Replace
+      - clean.Treatment
+      - clean.TreatmentRecord
+      - clean.Winsorise
+      - clean.run
+  - title: "Step: explore"
+    desc: "Each series alone, each driver against the target."
+    contents:
+      - explore.IDS
+      - explore.ExploreConfig
+      - explore.ExploreResult
+      - explore.Integration
+      - explore.LagProfile
+      - explore.Level
+      - explore.Profile
+      - explore.ProfileConfig
+      - explore.Screen
+      - explore.StationarityConfig
+      - explore.UnitRoot
+      - explore.driver_checks
+      - explore.integration_order
+      - explore.lag_search
+      - explore.newey_west_lags
+      - explore.profile
+      - explore.run
+      - explore.says_stationary
+      - explore.screen
+      - explore.unit_root
+  - title: "Step: build"
+    desc: "Candidate models within the declared signs and exclusions."
+    contents:
+      - build.IDS
+      - build.BuildConfig
+      - build.BuildResult
+      - build.Candidate
+      - build.Coefficient
+      - build.FormSpec
+      - build.combinations
+      - build.run
+      - build.stepwise
+      - build.vif
+  - title: "Step: select"
+    desc: "Rank the candidates out of sample and propose a default."
+    contents:
+      - select.IDS
+      - select.CandidateEvaluation
+      - select.Choice
+      - select.ConfidenceSet
+      - select.MCSConfig
+      - select.OrderingConfig
+      - select.Ranked
+      - select.RuleRow
+      - select.ScenarioForecast
+      - select.SelectConfig
+      - select.SelectResult
+      - select.confidence_set
+      - select.default_rule
+      - select.order_check
+      - select.out_of_order
+      - select.read_scenarios
+      - select.run
+  - title: "Step: forecast"
+    desc: "The chosen model projected under every scenario."
+    contents:
+      - forecast.IDS
+      - forecast.AnchorConfig
+      - forecast.BackTransform
+      - forecast.ForecastConfig
+      - forecast.ForecastResult
+      - forecast.ReversionConfig
+      - forecast.ScenarioPath
+      - forecast.SimulationConfig
+      - forecast.adjustment
+      - forecast.back_transform
+      - forecast.revert
+      - forecast.run
+  - title: "Step: diagnose"
+    desc: "The chosen model tested against its assumptions and against history."
+    contents:
+      - diagnose.IDS
+      - diagnose.Anomaly
+      - diagnose.AnomalyConfig
+      - diagnose.BacktestConfig
+      - diagnose.ChowConfig
+      - diagnose.ChowTest
+      - diagnose.Cusum
+      - diagnose.CusumConfig
+      - diagnose.DiagnoseConfig
+      - diagnose.DiagnoseResult
+      - diagnose.Diagnostic
+      - diagnose.LagTest
+      - diagnose.PValueTest
+      - diagnose.ResetConfig
+      - diagnose.Rolling
+      - diagnose.RollingConfig
+      - diagnose.Sensitivity
+      - diagnose.SensitivityConfig
+      - diagnose.anomalies
+      - diagnose.chow
+      - diagnose.default_lags
+      - diagnose.residual_tests
+      - diagnose.run
+  - title: "Step: report"
+    desc: "The run as a model document, built from the run record alone."
+    contents:
+      - report.IDS
+      - report.TITLES
+      - report.ReplayTolerance
+      - report.ReportConfig
+      - report.ReportResult
+      - report.replay_script
+      - report.run
+  - title: "Pipeline, record and replay"
+    desc: "Run steps in order, keep the run record, and replay it."
+    contents:
+      - pipeline.ATOL
+      - pipeline.DEFAULT_STEPS
+      - pipeline.RECORD_KIND
+      - pipeline.RTOL
+      - pipeline.SCHEMA_VERSION
+      - pipeline.Adapter
+      - pipeline.DatasetRecord
+      - pipeline.Difference
+      - pipeline.Environment
+      - pipeline.InputRecord
+      - pipeline.Pipeline
+      - pipeline.Replay
+      - pipeline.Run
+      - pipeline.RunInfo
+      - pipeline.RunRecord
+      - pipeline.StepInputs
+      - pipeline.adapters
+      - pipeline.compare
+      - pipeline.compare_records
+      - pipeline.default_adapter
+      - pipeline.environment
+      - pipeline.file_sha256
+      - pipeline.register_adapter
+      - pipeline.replay
+  - title: "Project folder"
+    desc: "A project on disk: its configuration, datasets and reports."
+    contents:
+      - project.DATASET_FORMAT
+      - project.PROJECT_FILE
+      - project.RECORD_PATH
+      - project.Project
+      - project.ProjectConfig
+      - project.commented_yaml
+      - project.init
+      - project.load
+      - project.read_dataset
+      - project.schema_path
+      - project.write_dataset
+  - title: "Testing"
+    desc: "The contract suites every component passes."
+    contents:
+      - testing.ComponentContract
+      - testing.ModelContract
+      - testing.sample_series

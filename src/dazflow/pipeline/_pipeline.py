@@ -146,6 +146,9 @@ class Run:
 class Pipeline:
     """Steps placed by name, run in order, each through its adapter.
 
+    Steps never see each other: the pipeline passes an earlier result to a
+    later step through the later step's adapter.
+
     Parameters
     ----------
     steps
@@ -157,9 +160,6 @@ class Pipeline:
         How each step is called; `dazflow.pipeline.adapters` by default. A
         step with no adapter is called as ``run(dataset, config)`` with the
         latest dataset.
-
-    Steps never see each other: the pipeline passes an earlier result to a
-    later step through the later step's adapter.
     """
 
     def __init__(

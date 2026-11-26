@@ -47,6 +47,7 @@ dazflow = "dazflow.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/pedrobtz/py-dazflow"
+Documentation = "https://pedrobtz.github.io/py-dazflow/"
 Issues = "https://github.com/pedrobtz/py-dazflow/issues"
 Changelog = "https://github.com/pedrobtz/py-dazflow/blob/main/CHANGELOG.md"
 
@@ -70,7 +71,7 @@ requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.sdist]
-exclude = [".agents", ".github", "CLAUDE.md", "uv.lock", ".python-version", "user_guide"]
+exclude = [".agents", ".github", "CLAUDE.md", "uv.lock", ".python-version", "great-docs.yml", "user_guide"]
 
 [dependency-groups]
 dev = [
