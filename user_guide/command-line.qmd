@@ -1,0 +1,171 @@
+---
+title: Command line
+---
+
+The `dazflow` command runs a project folder: the same steps, configuration
+and outputs as `dz.project.load(...).run()` and `.write()`. It is installed
+with the package; `python -m dazflow` works too. Every output below is
+pasted from a real run.
+
+```sh
+$ dazflow --help
+ Usage: dazflow [OPTIONS] COMMAND [ARGS]...
+
+ A time-series modelling workflow whose every step returns documented artefacts.
+
+╭─ Commands ───────────────────────────────────────────────────────────────────────────╮
+│ init      Create a project folder with commented defaults and example data.          │
+│ validate  Check the configuration and that every input reads, without running a      │
+│           step.                                                                      │
+│ run       Run the pipeline's steps in order; stop after a step whose gate fails      │
+│           (exit 2).                                                                  │
+│ replay    Rerun every step from reports/record.json and compare; exit 2 on a         │
+│           difference.                                                                │
+│ show      Print one table or finding of the last run (a figure: its file).           │
+│ plugins   List the registered components of every kind, built in and from plugins.   │
+│ build     Run the build step on the project, from the last run's earlier results;    │
+│           write reports/build/.                                                      │
+  ...
+╰──────────────────────────────────────────────────────────────────────────────────────╯
+```
+
+Every command but `init` works on the project in the current folder, or the
+one `-p/--project` names.
+
+## A project
+
+`dazflow init` writes a project folder: `project.yaml`, one commented file
+per step under `config/` with every setting at its default, and example
+data. `validate` reads the configuration and every input without running a
+step.
+
+```sh
+$ dazflow init loss-rate
+created loss-rate (11 files); next: dazflow validate -p loss-rate
+$ cd loss-rate
+$ dazflow validate
+loss-rate: valid; steps ingest, clean, explore, build, select, forecast, diagnose, report; 2 inputs read
+```
+
+## Running steps
+
+`dazflow run` runs the pipeline in order and writes each step's tables,
+figures and finding to `reports/<step>/`, its dataset to `data/`, and the
+run record to `reports/record.json`. `--to` stops after a step:
+
+```sh
+$ dazflow run --to explore
+ingest: gate passed; 4 artefacts in reports/ingest/
+  3 of 3 configured series were found and put on a quarterly calendar from 1995Q1 to 2024Q4. The targets and drivers overlap on 120 quarters, against a minimum of 40.
+clean: gate passed; 5 artefacts in reports/clean/
+  7 checks on 3 series flagged 1 periods before treatment. 0 treatments changed 0 values. After treatment, 0 of 12 checks fail.
+explore: gate passed; 6 artefacts in reports/explore/
+  3 series explored; 2 were differenced to stationarity. 2 of 2 drivers are kept, 0 of them by override: each has its expected sign and a p-value of at most 0.05.
+```
+
+`--from` carries the earlier steps from the last record, their datasets
+read back and checked against the recorded fingerprints, and runs the rest:
+
+```sh
+$ dazflow run --from build
+build: gate passed; 6 artefacts in reports/build/
+  3 candidates were fitted on 3 driver combinations of up to 2 drivers, beside 2 benchmarks; 3 pass every check: each driver has its expected sign and a p-value of at most 0.05, and no VIF exceeds 10.0.
+select: gate passed; 8 artefacts in reports/select/
+  5 models were scored at 60 origins, their errors scaled by the mean benchmark's; the model confidence set at 0.1 holds 1 of them, 1 passing every check. ols:gdp_growth+unemployment is proposed: 2 drivers and a scaled error of 0.3939399476640034.
+  ...
+report: gate passed; 6 artefacts in reports/report/
+  The document reports 7 steps, ingest to diagnose, in pipeline order, with 26 tables, 10 figures and 7 findings. Every step's gate passed, 1 check by override with a reason.
+```
+
+Each step is also a command of its own: `dazflow select` is
+`dazflow run --from select --to select`. A step from a plugin gets its
+command the same way.
+
+## Reading the results
+
+`dazflow show` prints one table or finding of the last run by its
+identifier, or the path of a figure:
+
+```sh
+$ dazflow show T6.1
+Table T6.1. Ranking of the candidates
+
+| Rank | Candidate | Role | Drivers | Scaled error | In the confidence set | MCS p-value | Build checks | Beats the benchmark | Scenarios out of order | Projections out of bounds | Choice | Passes every check |
+| ---: | :--- | :--- | ---: | ---: | :--- | ---: | :--- | :--- | ---: | ---: | :--- | :--- |
+| 1 | ols:gdp\_growth+unemployment | candidate | 2 | 0.39 | yes | 1.00 | pass | yes | 0 | 0 | chosen | Pass |
+| 2 | ols:unemployment | candidate | 1 | 0.49 | no | 0.01 | pass | yes | 0 | 0 |  | Pass |
+| 3 | ols:gdp\_growth | candidate | 1 | 0.54 | no | 0.01 | pass | yes | 0 | 0 |  | Pass |
+| 4 | mean | benchmark | 0 | 1.00 | no | 0.00 | pass | no | 0 | 0 |  | **Fail** |
+| 5 | naive | benchmark | 0 | 1.27 | no | 0.00 | pass | no | 0 | 0 |  | **Fail** |
+
+Scaled error: the candidate's rolling-origin RMSE over the mean benchmark's; it beats the benchmark below 1.
+$ dazflow show F3.1
+F3.1: Lag profiles: correlation of each driver with loss_rate, by lag
+reports/explore/F3.1.svg
+```
+
+`--json` on `run`, `validate`, `show`, `replay` and `plugins` prints the
+result as JSON instead; for `run` it is the run record.
+
+## Gates and exit status
+
+`0` when every gate passed, `1` on an error (its message, what was observed
+and what to change go to stderr), `2` when a gate failed. A failed gate
+stops the run after that step, which is still written, with the record's
+status `gate_failed`. The example's RESET test fails and is accepted by an
+override in `config/diagnose.yaml`; with the override removed:
+
+```sh
+$ dazflow run --from diagnose
+diagnose: gate FAILED (reset); 9 artefacts in reports/diagnose/
+  ols:gdp_growth+unemployment passes 11 of 12 diagnostic checks and fails reset. Back-tested from 57 origins up to 4 periods ahead, its 95% interval covered 0.9649122807017544 of the actual values, and 1 of 119 observations lie outside its 99% interval.
+stopped after diagnose: its gate failed
+$ echo $?
+2
+```
+
+An error names what it found and what to change:
+
+```sh
+$ dazflow validate
+error: the IngestConfig YAML does not parse
+  observed: duplicate key 'frequency'   in "<unicode string>", line 48, column 1:     frequency: X     ^
+  change: Correct the YAML syntax at the position given.
+$ echo $?
+1
+```
+
+## Report and replay
+
+The `report` step, last in the default pipeline, writes the Word document
+and a replay script to `reports/document/`. `dazflow replay` reruns every
+step from the record and compares each recorded number with what it
+computes now (floats within a relative 1e-9, the rest exactly), and also
+checks that `project.yaml` and `config/` still equal the recorded
+configuration. It exits `0` on a match and `2` on a difference; the script
+does the same without the command line.
+
+```sh
+$ dazflow report
+report: gate passed; 6 artefacts in reports/report/
+  The document reports 7 steps, ingest to diagnose, in pipeline order, with 26 tables, 10 figures and 7 findings. Every step's gate passed, 1 check by override with a reason.
+$ dazflow replay
+replay of run 20261126T005350Z-ff9f2976 (8 steps rerun): matches its record (rtol 1e-09, atol 1e-12)
+$ python reports/document/replay.py
+replay of run 20261126T005350Z-ff9f2976 (8 steps rerun): matches its record (rtol 1e-09, atol 1e-12)
+```
+
+## Plugins
+
+`dazflow plugins` lists the registered components by kind, built in and
+from installed plugins (see [Writing a plugin](writing-a-plugin.qmd)):
+
+```sh
+$ dazflow plugins
+step: build, clean, diagnose, explore, forecast, ingest, report, select
+step adapter: build, clean, diagnose, forecast, ingest, report, select
+reader: csv, excel, parquet
+check: completeness, duplicates, gaps, outliers, range, representativeness, revisions
+transform: boxcox, diff, growth, log, logdiff, logit, seasonal_diff
+renderer: docx, html, markdown, png, svg
+```
