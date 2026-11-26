@@ -1357,6 +1357,9 @@ Each statistical result needs an oracle, not just a passing run.
   plugin authors.
 - **Replay.** Every end-to-end test is replayed from its record and must
   match.
+- **Assurance file.** `.agents/assurance.md` lists every boundary, object
+  and threshold with the test that is its oracle, or the issue that tracks
+  the gap; mutation testing reads which oracles are missing (D46).
 
 ## 14 Decisions
 
@@ -1791,6 +1794,32 @@ Each statistical result needs an oracle, not just a passing run.
   subclass must pass. The `Docs` workflow fails on a docstring the numpy parser
   misreads and on a `great-docs.yml` great-docs cannot parse, which it
   would otherwise only warn about.)
+
+- **D46.** Assurance (2026-11-26, Stage 13). `.agents/assurance.md`
+  holds one row per boundary, long-lived object and threshold, each naming
+  the test that is its oracle or a `gap #<issue>`; it keeps the portfolio
+  template's headings, with the R-only checks left out (the package is pure
+  Python) and `fuzz` and `mutation` met by this repository's own workflows.
+  Mutation testing is mutmut 3.8 (dev group), configured in
+  `pyproject.toml`: it mutates `core/` (the gate arithmetic included),
+  `transforms/` and `evaluation/`, and runs only `tests/core`,
+  `tests/transforms` and `tests/evaluation`, with `-p no:randomly` and
+  without xdist, under hypothesis' derandomised `mutation` profile; the
+  `Mutation` workflow runs it weekly and on demand, never on a pull
+  request, and gates nothing. The gate arithmetic is plain functions
+  (`_passes`, `_status`, `_with_status`) called by the `Check` and `Gate`
+  properties. Hypothesis has three profiles chosen by `HYPOTHESIS_PROFILE`:
+  `quick` (100 examples, the quick job and the default), `full` (1000, the
+  full profile's test jobs) and `mutation`; a test that sets its own
+  `max_examples` keeps it. (mutmut copies the package to `mutants/` and
+  forks one process per mutant, so the unit tests of the mutated layers
+  keep a run under an hour, where the whole suite reruns the example
+  project for every mutant of `Dataset`; random test order and random
+  examples would turn a survivor into a flake; mutmut skips decorated
+  functions, so arithmetic inside a `@property` would never be mutated; a
+  survivor is a question about a test, which a red pull request would
+  not answer. The first run's survivors were read: those that meant a
+  missing oracle got a test, the rest are tracked in the assurance file.)
 
 ## 15 Build order
 
