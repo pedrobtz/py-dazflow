@@ -388,6 +388,18 @@ def test_select_without_a_chosen_model_is_refused(chosen):
         diagnose.run(ds, select=s.model_copy(update={"chosen": None}))
 
 
+def test_a_record_whose_data_are_not_selects_is_refused_as_not_refittable(chosen):
+    # The refit-failure branch (Stage 10's open point): reachable when the select
+    # result is inconsistent, its record naming other data than its dataset,
+    # as an edited or hand-built result would be.
+    ds, s = chosen
+    record = s.record.model_copy(update={"data": "0" * 64})
+    with pytest.raises(DiagnoseError, match="cannot be refitted") as info:
+        diagnose.run(ds, select=s.model_copy(update={"record": record}))
+    assert "the data are not those the model was fitted on" in str(info.value)
+    assert isinstance(info.value.__cause__, dz.ModelError)
+
+
 def test_the_artefacts_have_their_declared_ids(diagnosed):
     assert set(diagnosed.artefacts) == {
         "T8.1",

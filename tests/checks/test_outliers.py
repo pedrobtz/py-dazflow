@@ -93,3 +93,42 @@ def test_the_z_threshold_is_configuration(z, flagged):
     x = seasonal("Q", n, 0, spikes=at[:1], size=6.0)
     out = checks.evaluate("outliers", x, {"z": z})
     assert (str(x.index[at[0]]) in out.flagged) is flagged
+
+
+# Detection rates on short series and small spikes (Stage 13, the Stage 4 open
+# point). The exact-set tests above use 20 years of quarters; here the series
+# are 10 years of quarters or 4 of months, or the spikes are 6 or 8 standard
+# deviations, and the check is not exact on every seed. The oracle is still
+# the construction, read as rates over 40 fixed seeds: the share of planted
+# spikes flagged (recall) and the periods flagged that hold no spike. Measured
+# on 2026-11-26 (statsmodels 0.15.0), with a margin for other releases:
+#
+#   series            spike  recall    false flags
+#   40 quarters       10 sd  120/120   0
+#   40 quarters        8 sd  101/120   0
+#   40 quarters       none   -         2
+#   48 months         10 sd  119/120   0
+#   80 quarters        6 sd   91/120   1
+
+RATE_SEEDS = range(40)
+RATES = {
+    "40Q-10sd": ("Q", 40, (9, 20, 31), 10.0, 114, 2),
+    "40Q-8sd": ("Q", 40, (9, 20, 31), 8.0, 90, 2),
+    "40Q-none": ("Q", 40, (), 10.0, 0, 4),
+    "48M-10sd": ("M", 48, (13, 25, 37), 10.0, 114, 2),
+    "80Q-6sd": ("Q", 80, (17, 42, 67), 6.0, 78, 3),
+}
+
+
+@pytest.mark.parametrize("case", RATES)
+def test_detection_rate_on_short_series_and_small_spikes(case):
+    freq, n, at, size, min_recall, max_false = RATES[case]
+    recall = false = 0
+    for seed in RATE_SEEDS:
+        x = seasonal(freq, n, seed, spikes=at, size=size)
+        flagged = set(checks.evaluate("outliers", x).flagged)
+        planted = {str(x.index[i]) for i in at}
+        recall += len(flagged & planted)
+        false += len(flagged - planted)
+    assert recall >= min_recall, f"{recall} of {len(at) * len(RATE_SEEDS)} spikes flagged"
+    assert false <= max_false, f"{false} periods without a spike flagged"
