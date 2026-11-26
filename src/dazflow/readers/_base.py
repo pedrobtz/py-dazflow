@@ -186,6 +186,21 @@ def _parse(text: str) -> pd.Period:
         ) from err
 
 
+def _timestamps(make: Any, values: pd.Index) -> pd.DatetimeIndex:
+    """`make()` as a DatetimeIndex; a date pandas cannot hold as a timestamp is a ReaderError.
+
+    pandas 2 keeps timestamps in nanoseconds, from 1677 to 2262 (issue #37).
+    """
+    try:
+        return pd.DatetimeIndex(make())
+    except (pd.errors.OutOfBoundsDatetime, OverflowError) as err:
+        raise _bad(
+            "a date is outside the range pandas can put on a calendar",
+            f"dates from {min(map(str, values))} to {max(map(str, values))}: {err}",
+            "Correct the dates; pandas 2 holds dates from 1677 to 2262.",
+        ) from err
+
+
 def to_periods(values: Sequence[Any] | pd.Index, frequency: str | None = None) -> pd.PeriodIndex:
     """The periods of `values` (periods, dates, years or date text) at `frequency` or the inferred one."""
     values = pd.Index(values)
@@ -212,7 +227,7 @@ def to_periods(values: Sequence[Any] | pd.Index, frequency: str | None = None) -
         dates = pd.DatetimeIndex(values)
         return _infer(dates.tz_localize(None) if dates.tz is not None else dates, frequency)
     if all(isinstance(v, dt.date) for v in values):
-        return _infer(pd.DatetimeIndex(pd.to_datetime(list(values))), frequency)
+        return _infer(_timestamps(lambda: pd.to_datetime(list(values)), values), frequency)
     if ptypes.is_integer_dtype(values.dtype) or ptypes.is_float_dtype(values.dtype):
         if ptypes.is_float_dtype(values.dtype) and not all(float(v).is_integer() for v in values):
             raise _bad(
@@ -224,7 +239,7 @@ def to_periods(values: Sequence[Any] | pd.Index, frequency: str | None = None) -
     parsed = [_parse(str(v)) for v in values]
     kinds = {_FREQSTR.get(p.freqstr) for p in parsed}
     if None in kinds:  # finer than a month: dates, read as days
-        return _infer(pd.DatetimeIndex([p.start_time for p in parsed]), frequency)
+        return _infer(_timestamps(lambda: [p.start_time for p in parsed], values), frequency)
     if len(kinds) > 1:
         raise _bad(
             "the dates are written at different frequencies",

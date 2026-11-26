@@ -7,11 +7,24 @@ extra, so these tests run there; the core job installs none, so they skip.
 """
 
 import importlib.metadata
+import os
 import shutil
 from pathlib import Path
 
 import pytest
 from example_helpers import EXAMPLE
+from hypothesis import HealthCheck, settings
+
+# Hypothesis profiles (design D46), chosen by HYPOTHESIS_PROFILE: `quick` (the
+# default, and the quick CI job), `full` (the full profile's jobs) and
+# `mutation` (the scheduled mutation run, where a test must give the same
+# verdict on every run). A test that sets its own max_examples keeps it.
+settings.register_profile("quick", max_examples=100, deadline=None)
+settings.register_profile(
+    "full", max_examples=1000, deadline=None, suppress_health_check=[HealthCheck.too_slow]
+)
+settings.register_profile("mutation", max_examples=100, deadline=None, derandomize=True)
+settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "quick"))
 
 
 def installed(distribution: str) -> bool:

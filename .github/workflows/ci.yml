@@ -3,6 +3,8 @@ name: CI
 # Profiles (see .agents/roadmap.md, "CI policy"):
 #   quick: ruff check, ruff format --check, and pytest in random order with
 #          coverage on Ubuntu / Python 3.13, latest dependencies. Pull requests.
+#          Hypothesis runs its `quick` profile here and `full` (ten times the
+#          examples) in the full profile's test jobs (tests/conftest.py).
 #   full:  ruff, pytest on Ubuntu and Windows x Python 3.12-3.14 and macOS x
 #          3.12 and 3.14, lowest direct dependencies, core only (no extras),
 #          and sdist + wheel with twine check, then `dazflow run`, `dazflow
@@ -101,6 +103,8 @@ jobs:
       # run in parallel (pytest-xdist) to stay inside the five-minute budget; the
       # seed reaches every worker.
       - run: uv run --frozen --all-extras pytest -n auto --cov=dazflow --cov-report=term-missing
+        env:
+          HYPOTHESIS_PROFILE: quick
 
   test:
     needs: changes
@@ -122,6 +126,8 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - run: uv run --frozen --all-extras pytest --cov=dazflow --cov-report=term-missing
+        env:
+          HYPOTHESIS_PROFILE: full
 
   lowest:
     needs: changes
@@ -134,6 +140,8 @@ jobs:
         with:
           python-version: "3.12"
       - run: uv run --resolution lowest-direct --isolated --all-extras pytest
+        env:
+          HYPOTHESIS_PROFILE: full
       - name: Versions resolved
         run: >-
           uv run --resolution lowest-direct --isolated --all-extras python -c
@@ -159,6 +167,8 @@ jobs:
           found = [m for m in ('openpyxl', 'pyarrow', 'polars', 'sqlalchemy', 'sklearn', 'xarray', 'xlsxwriter') if u.find_spec(m)];
           print('extras found:', found); sys.exit(bool(found))"
       - run: uv run --frozen --exact pytest
+        env:
+          HYPOTHESIS_PROFILE: full
 
   package:
     needs: changes
