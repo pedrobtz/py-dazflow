@@ -68,7 +68,7 @@ checks something the stage introduces and later stages build on.
 | 9 | [Forecast](#stage-9--forecast) | quick | [#11](https://github.com/pedrobtz/py-dazflow/issues/11) | [#29](https://github.com/pedrobtz/py-dazflow/pull/29) | 2026-11-25 |
 | 10 | [Diagnose](#stage-10--diagnose) | quick | [#12](https://github.com/pedrobtz/py-dazflow/issues/12) | [#30](https://github.com/pedrobtz/py-dazflow/pull/30) | 2026-11-25 |
 | 11 | [Report and replay](#stage-11--report-and-replay) | quick | [#13](https://github.com/pedrobtz/py-dazflow/issues/13) | [#31](https://github.com/pedrobtz/py-dazflow/pull/31) | 2026-11-26 |
-| 12 | [Documentation site](#stage-12--documentation-site) | quick | [#14](https://github.com/pedrobtz/py-dazflow/issues/14) | | |
+| 12 | [Documentation site](#stage-12--documentation-site) | quick | [#14](https://github.com/pedrobtz/py-dazflow/issues/14) | | 2026-11-26 |
 | 13 | [Assurance](#stage-13--assurance) | quick | [#15](https://github.com/pedrobtz/py-dazflow/issues/15) | | |
 | 14 | [Full CI](#stage-14--full-ci) | full | [#16](https://github.com/pedrobtz/py-dazflow/issues/16) | | |
 | 15 | [v0.1.0 readiness](#stage-15--v010-readiness) | full | [#17](https://github.com/pedrobtz/py-dazflow/issues/17) | | |
@@ -794,6 +794,21 @@ pytest-xdist, a dev-group addition (CI policy).
 - <https://pedrobtz.github.io/py-dazflow/> serves the site.
 
 **Design.** [§1](design.md#1-purpose-and-scope).
+
+**As built** (2026-11-26). great-docs 0.17.0 on Quarto 1.11.9, run with
+`uv run --with` as in `py-dazdiff` (D45). The reference has 24 groups:
+core (four), the components (readers, checks, transforms, model forms,
+evaluation, rendering), steps (the registry, then one group per step) and
+pipeline, project folder and testing; `tests/test_docs.py` checks that
+every name in a public `__all__` is in one, aliases under their long name.
+The pages are not executed by the build: `tests/test_guide.py` runs the
+Python of Get started, Writing a plugin and the README on a copy of
+`examples/loss-rate` in the quick profile, and the plugin page's form is
+installed through its own `dazflow.plugins` entry point and passes
+`ModelContract`. The Command line page's output is pasted, not rerun; the
+CLI's behaviour is tested in `tests/cli/`. The `Docs` workflow has no tests
+job (as in `py-dazdiff`). The site is served only after the merge's
+deploy, so the second exit criterion is checked on `main`.
 
 ## Stage 13 — Assurance
 

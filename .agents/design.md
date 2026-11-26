@@ -1773,6 +1773,22 @@ Each statistical result needs an oracle, not just a passing run.
   own replay would replay itself recursively. The document and replay
   script are pure functions of the record, so a replay reruns the report
   from the replayed record and compares it like any other step.)
+- **D45.** The documentation site is great-docs 0.17.0 on Quarto 1.11.9,
+  as in `py-dazdiff`, run through `uv run --with` and not a dependency of
+  the package; it is deployed to GitHub Pages from `main` by the `Docs`
+  workflow and named `Documentation` in `project.urls`. The home page is the
+  README. The API reference lists every name in a public module's
+  `__all__` once (`tests/test_docs.py`), grouped by layer; an alias
+  (`ingest.Config`, `select.ScenarioInput`) is documented under its long
+  name, and a step's names under `<step>.<name>`, as `dz.<step>` exposes
+  them. Guide pages are not executed at build time: their output is pasted
+  from real runs, and `tests/test_guide.py` runs their Python in the quick
+  profile, on a copy of `examples/loss-rate` (2026-11-26, Stage 12: the
+  build then needs neither the extras nor a project folder, and a page that
+  stops working fails the tests rather than rendering an error. The plugin
+  page is a contract: its module is installed through its own entry point,
+  its configuration is merged into the example, and its `ModelContract`
+  subclass must pass.)
 
 ## 15 Build order
 

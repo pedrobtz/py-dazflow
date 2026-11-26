@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Documentation site at <https://pedrobtz.github.io/py-dazflow/>: the
+  README as its home page, an API reference listing every public name by
+  layer, and three guide pages, Get started (run on the example project),
+  Command line and Writing a plugin (a model form registered by decorator
+  and through the `dazflow.plugins` entry point, checked with
+  `dazflow.testing.ModelContract`). `project.urls` names it
+  `Documentation`, and the README is now a short landing page.
 - `dz.report`: the eighth and last step of 0.1.0. It builds the run's Word
   document from the run record alone: a contents list, a summary, one
   section per step in pipeline order with that step's finding, tables and

@@ -77,6 +77,10 @@ default pipeline ends at diagnose.
 `Project.replay` and `dazflow replay`. The default pipeline ends at report,
 every 0.1.0 step.
 
+2026-11-26, Stage 12: the documentation site (`great-docs.yml`,
+`user_guide/`, `.github/workflows/docs.yml`), deployed to
+<https://pedrobtz.github.io/py-dazflow/>.
+
 ## Versions and dependents
 
 `v0.1.0` issue: see the roadmap header. Dependents: none.
@@ -98,7 +102,12 @@ uv add '<pkg>>=<lowest>'      # a core dependency; then commit uv.lock
 uv add --optional <extra> '<pkg>>=<lowest>'   # a package in an extra
 uv add --dev '<pkg>>=<lowest>'                # a dev-group tool
 uv run --resolution lowest-direct --isolated --all-extras --python 3.12 pytest
+uv run --python 3.13 --with great-docs==0.17.0 great-docs build    # site into great-docs/_site
+uv run --python 3.13 --with great-docs==0.17.0 great-docs preview  # serve it locally
 ```
+
+The site build needs Quarto 1.11.9 on `PATH` (the `Docs` workflow installs
+it; Positron ships one under `Contents/Resources/app/quarto/bin`).
 
 A new dependency's lower bound is the oldest release that installs on
 Python 3.12 and passes the lowest-direct run above (design D15).
@@ -237,6 +246,16 @@ To be written as stages land; see `.agents/design.md` §4 for the layers
 - `core/dataset.py`: `Dataset` is a plain class (pandas frames are not
   pydantic fields); the fingerprint's canonical form is design §5.1.1.
   Changing what it hashes means a new format and new stored hashes.
+
+- The documentation site is `great-docs.yml` (API reference groups),
+  `README.md` (home page), `user_guide/*.qmd` and the docstrings (numpy
+  parser). A new public name goes into a `reference` group, or
+  `tests/test_docs.py` fails. Guide output is pasted from real runs, and
+  `tests/test_guide.py` runs every Python block of `get-started.qmd`,
+  `writing-a-plugin.qmd` and the README on a copy of `examples/loss-rate`:
+  after changing what a step prints or returns, rerun the page and paste
+  again (design D45). `.github/workflows/docs.yml` builds the site on pull
+  requests and deploys it from `main`.
 
 ## Invariants that are easy to break
 
