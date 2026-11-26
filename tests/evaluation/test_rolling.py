@@ -78,3 +78,94 @@ def test_a_coverage_level_that_is_not_forecast_is_refused(data):
             metrics=[evaluation.Coverage(level=0.9)],
             levels=(0.8, 0.95),
         )
+
+
+# Mutation survivors (Stage 13): each test below was missing an oracle.
+
+
+def test_a_score_that_was_not_computed_is_refused_naming_the_horizon(data):
+    y, _ = data
+    ev = evaluation.evaluate("naive", y, splitter=evaluation.Expanding(initial=16, horizon=2))
+
+    with pytest.raises(EvaluationError, match=r"no mape score$|no mape score\n"):
+        ev.score("mape")
+    with pytest.raises(EvaluationError, match="no mae score at horizon 3"):
+        ev.score("mae", horizon=3)
+
+
+def test_the_frame_holds_every_row_and_its_bounds_by_level(data):
+    y, _ = data
+    ev = evaluation.evaluate("naive", y, splitter=evaluation.Expanding(initial=16, horizon=2))
+    frame = ev.frame()
+
+    assert list(frame.columns) == [
+        "fold",
+        "origin",
+        "period",
+        "horizon",
+        "actual",
+        "forecast",
+        "lower_0.8",
+        "upper_0.8",
+        "lower_0.95",
+        "upper_0.95",
+    ]
+    assert frame["forecast"].tolist() == [r.forecast for r in ev.rows]
+    assert frame["lower_0.8"].tolist() == [r.lower[0] for r in ev.rows]
+    assert frame["upper_0.95"].tolist() == [r.upper[1] for r in ev.rows]
+
+
+def test_the_scores_and_the_splitter_record_their_configuration(data):
+    y, _ = data
+    split = evaluation.Rolling(window=12, horizon=2, step=3)
+    ev = evaluation.evaluate("naive", y, splitter=split, metrics=[evaluation.MASE(season=4), "mae"])
+
+    assert ev.splitter == "rolling"
+    assert ev.splitter_config == {"horizon": 2, "step": 3, "folds": None, "window": 12}
+    assert {(s.metric, s.horizon): s.config for s in ev.scores}[("mase", None)] == {"season": 4}
+    assert {(s.metric, s.horizon): s.config for s in ev.scores}[("mae", 1)] == {}
+
+
+def test_a_splitter_and_metrics_may_be_given_by_key(data):
+    y, _ = data
+    by_key = evaluation.evaluate("naive", y, splitter="expanding", metrics=["mae"])
+    by_object = evaluation.evaluate(
+        "naive", y, splitter=evaluation.Expanding(), metrics=[evaluation.MAE()]
+    )
+    assert by_key == by_object
+    assert evaluation.evaluate("naive", y, metrics=["mae"]) == by_object  # expanding by default
+
+
+def test_an_unregistered_metric_is_recorded_under_its_class_name(data):
+    y, _ = data
+
+    class Bias:
+        config = None  # no parameters to record
+
+        def score(self, actual, forecast, **kwargs):
+            return float(np.mean(np.asarray(actual) - np.asarray(forecast)))
+
+    ev = evaluation.evaluate("naive", y, metrics=[Bias()])
+    assert {s.metric for s in ev.scores} == {"Bias"}
+    assert {tuple(s.config) for s in ev.scores} == {()}
+
+
+def test_every_origin_forecasts_the_evaluations_levels(data):
+    y, X = data
+    ev = evaluation.evaluate(
+        "ols",
+        y,
+        X,
+        splitter=evaluation.Rolling(window=12, horizon=2),
+        metrics=["mae"],
+        levels=(0.5,),
+    )
+    for fold in ev.folds:
+        tr, te = slice(*fold.train), slice(*fold.test)
+        res = sm.OLS(y.iloc[tr], sm.add_constant(X.iloc[tr])).fit()
+        frame = res.get_prediction(sm.add_constant(X.iloc[te], has_constant="add")).summary_frame(
+            alpha=0.5
+        )
+        rows = [r for r in ev.rows if r.fold == fold.number]
+        np.testing.assert_allclose([r.lower[0] for r in rows], frame["obs_ci_lower"], rtol=1e-12)
+        np.testing.assert_allclose([r.upper[0] for r in rows], frame["obs_ci_upper"], rtol=1e-12)

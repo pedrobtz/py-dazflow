@@ -90,3 +90,19 @@ def test_a_fold_never_trains_on_its_test_periods():
 def test_the_index_must_be_periods():
     with pytest.raises(EvaluationError, match="PeriodIndex"):
         evaluation.splitters.get("expanding")().split(pd.RangeIndex(20))
+
+
+def test_an_expanding_split_may_train_on_one_period():
+    # initial is at least 1; the first origin then trains on the first period alone
+    folds = evaluation.Expanding(initial=1).split(INDEX)
+    assert (folds[0].train, folds[0].test) == ((0, 1), (1, 2))
+    assert len(folds) == 19
+    short = pd.period_range("2000Q1", periods=3, freq="Q")
+    assert evaluation.Expanding().split(short)[0].train == (0, 1)  # half of 3 is 1
+
+
+@pytest.mark.parametrize("key", ["expanding", "rolling"])
+def test_a_splitter_that_leaves_no_fold_names_itself(key):
+    params = {"initial": 20} if key == "expanding" else {"window": 20}
+    with pytest.raises(EvaluationError, match=f"the {key} splitter leaves no fold"):
+        split(key, **params)
