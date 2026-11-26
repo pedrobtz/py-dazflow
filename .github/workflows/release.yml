@@ -3,12 +3,16 @@ name: Release
 # Publishing (design §12, roadmap Stage 15), by trusted publishing: no token is
 # stored anywhere.
 #   tag v*:            build, then publish to PyPI (environment `pypi`). The tag
-#                      must equal `v` + the version in pyproject.toml.
+#                      must equal `v` + the version in pyproject.toml. After the
+#                      publish, the GitHub release for the tag is made (or
+#                      updated) with the version's CHANGELOG.md section as its
+#                      notes and the wheel and sdist attached.
 #   workflow_dispatch: build, publish to TestPyPI (environment `testpypi`), then
 #                      install that version from TestPyPI into a clean
 #                      environment and run `dazflow --version`, `dazflow init`
 #                      and `dazflow run`. A dispatch never publishes to PyPI.
 #   pull_request:      only when this file changes, the build alone (a dry run).
+# Every event checks that CHANGELOG.md has a section for the version.
 
 on:
   push:
@@ -56,6 +60,31 @@ jobs:
             echo "::error::tag $TAG does not match version $VERSION in pyproject.toml"
             exit 1
           fi
+      - name: Release notes from CHANGELOG.md
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # The section under `## <version>` up to the next `## ` heading.
+          awk -v v="$VERSION" '
+            /^## / { if (found) exit; if (index($0, "## " v " ") == 1 || $0 == "## " v) { found = 1; next } }
+            found
+          ' CHANGELOG.md > release-notes.md
+          if ! grep -q '[^[:space:]]' release-notes.md; then
+            echo "::error::CHANGELOG.md has no section for $VERSION"
+            exit 1
+          fi
+          {
+            echo
+            echo "---"
+            echo
+            echo "Install: \`pip install dazflow==$VERSION\`. On PyPI: https://pypi.org/project/dazflow/$VERSION/ · Documentation: https://pedrobtz.github.io/py-dazflow/"
+          } >> release-notes.md
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-notes
+          path: release-notes.md
+          if-no-files-found: error
       - run: uv build
       - run: uv run --frozen --only-group dev twine check --strict dist/*
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -79,6 +108,37 @@ jobs:
           name: dist
           path: dist/
       - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
+
+  # The GitHub release for the tag, made only once PyPI has the version. A
+  # rerun updates the notes and replaces the files rather than failing.
+  github-release:
+    needs: [build, pypi]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist
+          path: dist/
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-notes
+      - name: Create or update the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "dazflow $VERSION" --notes-file release-notes.md
+            gh release upload "$TAG" dist/* --clobber
+          else
+            gh release create "$TAG" dist/* --verify-tag --title "dazflow $VERSION" --notes-file release-notes.md
+          fi
 
   testpypi:
     needs: build
