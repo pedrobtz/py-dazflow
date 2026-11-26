@@ -7,7 +7,7 @@ target: null
 drivers: null
 # Expected sign by driver; replaces explore's and the metadata. 0: no check.
 expected_signs: {}
-# Lag by driver, in periods; replaces explore's lags.
+# Lag by driver, in periods (0 or more); replaces explore's lags.
 lags: {}
 # Every combination up to max_size, or forward stepwise by the criterion.
 search: exhaustive

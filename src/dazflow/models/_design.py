@@ -9,7 +9,7 @@ added, and the sample.
 
 from __future__ import annotations
 
-from typing import ClassVar
+from typing import Annotated, ClassVar
 
 import numpy as np
 import pandas as pd
@@ -42,7 +42,7 @@ class Design(DazflowModel):
 
     target: str
     drivers: tuple[str, ...] = ()
-    lags: dict[str, int] = Field(default_factory=dict)
+    lags: dict[str, Annotated[int, Field(ge=0)]] = Field(default_factory=dict)
     chains: dict[str, tuple[str, ...]] = Field(default_factory=dict)
     trend: bool = False
     trend_start: str | None = None

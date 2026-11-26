@@ -22,11 +22,15 @@ findings ready for a model document. It needs Python 3.12 or later.
   its expected sign.
 - `dz.build` checks driver correlation and variance inflation, searches
   driver combinations (exhaustive or stepwise) and fits the configured
-  forms simplest first, always with the benchmarks.
+  forms simplest first, always with the benchmarks. A form listed twice
+  in `forms` and a negative driver lag are refused when the configuration
+  is read.
 - `dz.select` scores the candidates by rolling-origin evaluation, computes
   a model confidence set, checks scenario projections for ordering and
   bounds, and proposes a default that the modeller confirms or overrides
-  in configuration, with a reason.
+  in configuration, with a reason. Scenarios of different lengths are
+  forecast over the periods all of them cover, as forecast does; a choice
+  whose rolling-origin evaluation failed is refused with its reason.
 - `dz.forecast` forecasts the chosen model under every scenario with
   intervals, anchors the origin, optionally reverts to a long-run level,
   and transforms back to the target's scale with a suitable bias
@@ -67,6 +71,14 @@ findings ready for a model document. It needs Python 3.12 or later.
 - Plugins: model forms, checks, transforms, readers, renderers and steps
   register under a key, by decorator or through the `dazflow.plugins`
   entry point. `dazflow.testing` holds the contracts a plugin passes.
+
+### Installation
+
+- `pip install dazflow`, Python 3.12 or later. The one extra, `io`, adds
+  openpyxl, pyarrow and polars for the Excel and Parquet readers and
+  polars or pyarrow input; the other extras return with the features that
+  use them.
+- The package is typed: the wheel carries `py.typed` (PEP 561).
 
 ### Documentation
 

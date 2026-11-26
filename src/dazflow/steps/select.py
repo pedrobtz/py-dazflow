@@ -510,21 +510,25 @@ def run(
     forecasts: list[ScenarioForecast] = []
     stats: dict[str, dict[str, float]] = {}
     if scen is not None:
+        # Every scenario over one horizon, the periods all of them cover after the
+        # sample, as forecast does: projections compared across scenarios are then
+        # of the same periods (D49). Every candidate shares build's sample end.
+        end = pd.Period(by_id[cfg.benchmark].design.end, freq=levels.index.freq)
+        by_label = {label: scen.xs(label, level="scenario") for label in severity}
+        for label, paths in by_label.items():
+            if not readers.scenario_cover(paths, end):
+                raise _fail(
+                    f"the scenario {label!r} has no period after the sample",
+                    f"sample ends {end}; scenario {paths.index[0]}..{paths.index[-1]}",
+                    "Give scenario paths for the periods after the last observation.",
+                )
+        h = min(readers.scenario_cover(paths, end) for paths in by_label.values())
         for cid in scored:
             c = by_id[cid]
             y, X = data[cid]
             fitted = models.refit(c.record, y, X)
             stats[cid] = {}
-            for label in severity:
-                paths = scen.xs(label, level="scenario")
-                ahead = paths.index[paths.index > pd.Period(c.design.end, freq=levels.index.freq)]
-                if not len(ahead):
-                    raise _fail(
-                        f"the scenario {label!r} has no period after the sample",
-                        f"sample ends {c.design.end}; scenario {paths.index[0]}..{paths.index[-1]}",
-                        "Give scenario paths for the periods after the last observation.",
-                    )
-                h = len(ahead)
+            for label, paths in by_label.items():
                 fc = fitted.predict(h, c.design.future(levels, paths, h), levels=cfg.levels)
                 path = _to_levels(fc, c.design, levels, target)
                 forecasts.append(
@@ -553,6 +557,15 @@ def run(
                 f"the chosen candidate {chosen!r} is not one build fitted",
                 f"candidates: {', '.join(c.id for c in build.candidates if c.record is not None)}",
                 "Name a fitted candidate in choice.candidate.",
+            )
+        if chosen not in scored:
+            # With no scores and no projections its checks would have nothing to compare (#47).
+            note = next(e.note for e in evaluations if e.candidate == chosen)
+            raise _fail(
+                f"the chosen candidate {chosen!r} could not be evaluated",
+                note or "no evaluation",
+                "Choose an evaluated candidate in choice.candidate, or give the splitter a "
+                "first training window the candidate can be fitted on (splitter_config.initial).",
             )
         decision = "confirmed" if chosen == proposal else "overridden"
         reason = cfg.choice.reason
@@ -591,7 +604,9 @@ def run(
             checks.append(
                 Check(
                     name="scenario-bounds",
-                    observed=float(pick.out_of_bounds or 0),
+                    observed=(
+                        math.nan if pick.out_of_bounds is None else float(pick.out_of_bounds)
+                    ),
                     threshold=0.0,
                     op="<=",
                 )
