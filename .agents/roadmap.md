@@ -73,7 +73,7 @@ checks something the stage introduces and later stages build on.
 | 13 | [Assurance](#stage-13--assurance) | quick | [#15](https://github.com/pedrobtz/py-dazflow/issues/15) | [#43](https://github.com/pedrobtz/py-dazflow/pull/43) | 2026-11-26 |
 | 14 | [Full CI](#stage-14--full-ci) | full | [#16](https://github.com/pedrobtz/py-dazflow/issues/16) | [#45](https://github.com/pedrobtz/py-dazflow/pull/45) | 2026-11-26 |
 | 15 | [v0.1.0 readiness](#stage-15--v010-readiness) | full | [#17](https://github.com/pedrobtz/py-dazflow/issues/17) | [#46](https://github.com/pedrobtz/py-dazflow/pull/46) | 2026-11-26 |
-| 16 | [Review](#stage-16--review) | full | [#18](https://github.com/pedrobtz/py-dazflow/issues/18) | | |
+| 16 | [Review](#stage-16--review) | full | [#18](https://github.com/pedrobtz/py-dazflow/issues/18) | [#53](https://github.com/pedrobtz/py-dazflow/pull/53), [#55](https://github.com/pedrobtz/py-dazflow/pull/55) | 2026-11-26 |
 
 ## Stage 0 — Package identity
 
