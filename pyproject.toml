@@ -84,6 +84,7 @@ dev = [
     "twine>=6.1",
     "jsonschema>=4.21",
     "pytest-xdist>=3.6",
+    "mutmut>=3.8.1",
 ]
 
 [tool.ruff]
@@ -95,6 +96,25 @@ extend-exclude = [".agents"]
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
 ignore = ["E501"]  # line length is the formatter's job
+
+# Mutation testing (design D46): `uv run --all-extras mutmut run`, then
+# `mutmut results`. It runs on a schedule (.github/workflows/mutation.yml) and
+# never gates a pull request. mutmut copies the package into mutants/ and runs
+# the unit tests of the mutated layers in file order, in one process.
+[tool.mutmut]
+source_paths = ["src"]
+only_mutate = [
+    "src/dazflow/core/*",
+    "src/dazflow/transforms/*",
+    "src/dazflow/evaluation/*",
+]
+also_copy = ["examples/"]
+pytest_add_cli_args = ["-p", "no:randomly", "-p", "no:cacheprovider", "-q"]
+pytest_add_cli_args_test_selection = [
+    "tests/core",
+    "tests/transforms",
+    "tests/evaluation",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
