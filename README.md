@@ -34,16 +34,15 @@ From [PyPI](https://pypi.org/project/dazflow/):
 pip install dazflow
 ```
 
-It needs Python 3.12 or later. Optional extras add readers and methods:
+It needs Python 3.12 or later. The `io` extra adds the Excel and Parquet
+readers and polars or pyarrow input:
 
 ```sh
-pip install "dazflow[io]"         # Excel and Parquet files
-pip install "dazflow[io,breaks]"  # several extras at once
+pip install "dazflow[io]"
 ```
 
-The extras are `io`, `excel`, `breaks`, `panel`, `ml`, `sensitivity`,
-`cube`, `fetch` and `credit`. The development version installs from
-GitHub: `pip install git+https://github.com/pedrobtz/py-dazflow`.
+The development version installs from GitHub:
+`pip install git+https://github.com/pedrobtz/py-dazflow`.
 
 ## A first run
 

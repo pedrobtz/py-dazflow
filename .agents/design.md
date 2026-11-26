@@ -1314,6 +1314,10 @@ when a package is adopted.
 | `excel` | xlsxwriter | Excel artefacts |
 | `credit` | optbinning, scikit-learn | binning, AUC, PSI, migration |
 
+0.1.0 publishes only `io`, with openpyxl, pyarrow and polars (D48): no
+step of 0.1.0 imports any other package of this table, so the other extras,
+and SQLAlchemy in `io`, return with the stage that uses them.
+
 Stage 0 put these groups into `pyproject.toml` with lower bounds that
 resolve and install on Python 3.12 (2026-11-25). Two differ from the
 table: `fast` is empty, because statsforecast 2.0.2 and later cap pandas
@@ -1845,6 +1849,15 @@ Each statistical result needs an oracle, not just a passing run.
   counts as unused. (A tolerance chosen to pass two machines would be
   untested on the third; the same-machine replay is the reproducibility
   0.1.0 promises, §10.)
+
+- **D48.** 0.1.0 publishes only the `io` extra, with openpyxl, pyarrow
+  and polars; `panel`, `ml`, `fast`, `breaks`, `sensitivity`, `cube`,
+  `fetch`, `excel` and `credit`, and SQLAlchemy in `io`, are dropped from
+  `pyproject.toml` and return with the stage that uses them (2026-11-26,
+  Stage 16, #51: nothing in 0.1.0 imports their packages, so PyPI's
+  metadata would promise features that are not there, and an extra once
+  published cannot be removed without breaking someone's install). The
+  wheel carries `py.typed` (#52), since its public API is annotated.
 
 ## 15 Build order
 

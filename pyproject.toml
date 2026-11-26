@@ -40,6 +40,7 @@ classifiers = [
     "Topic :: Scientific/Engineering",
     "Topic :: Scientific/Engineering :: Mathematics",
     "Topic :: Office/Business :: Financial",
+    "Typing :: Typed",
 ]
 
 [project.scripts]
@@ -52,19 +53,9 @@ Issues = "https://github.com/pedrobtz/py-dazflow/issues"
 Changelog = "https://github.com/pedrobtz/py-dazflow/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
-panel = ["linearmodels>=6.1", "pyfixest>=0.30"]
-ml = ["scikit-learn>=1.5", "glum>=3.1"]
-# statsforecast 2.0.2 and later cap pandas below 3, and 2.0.1 has wheels for
-# Python 3.12 only, so the group stays empty until a release supports pandas 3.
-fast = []
-# ruptures 1.1.10 declares Python < 3.14 and ships no 3.14 wheels.
-breaks = ['ruptures>=1.1.10; python_version < "3.14"']
-sensitivity = ["SALib>=1.5"]
-cube = ["xarray>=2024.6"]
-fetch = ["sdmx1>=2.16", "pandas-datareader>=0.11", "fredapi>=0.5.2"]
-io = ["openpyxl>=3.1.3", "SQLAlchemy>=2.0.30", "pyarrow>=16", "polars>=1.0"]
-excel = ["xlsxwriter>=3.2"]
-credit = ["optbinning>=0.20", "scikit-learn>=1.5"]
+# Only the extras 0.1.0 imports; the others of design §12.2 return with the
+# stage that uses them (D48).
+io = ["openpyxl>=3.1.3", "pyarrow>=16", "polars>=1.0"]
 
 [build-system]
 requires = ["hatchling>=1.27"]
