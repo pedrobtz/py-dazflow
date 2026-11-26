@@ -42,12 +42,14 @@ jobs:
         run: |
           set -o pipefail
           uv run --frozen --with "great-docs==$GREAT_DOCS_VERSION" great-docs build 2>&1 | tee build.log
-      - name: Every docstring parses
+      - name: The configuration and every docstring parse
         shell: bash
         run: |
-          # griffe reports a docstring the numpy parser misreads as <file>.py:<line>: <problem>.
-          if grep -E '\.py:[0-9]+: ' build.log; then
-            echo "::error::A docstring does not parse under the numpy parser (see above)."
+          # great-docs only warns on a great-docs.yml it cannot parse, and falls
+          # back to an auto-generated reference; griffe reports a docstring the
+          # numpy parser misreads as <file>.py:<line>: <problem>.
+          if grep -E 'Error parsing great-docs.yml|\.py:[0-9]+: ' build.log; then
+            echo "::error::great-docs.yml or a docstring does not parse (see above)."
             exit 1
           fi
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0

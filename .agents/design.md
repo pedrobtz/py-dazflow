@@ -1788,7 +1788,9 @@ Each statistical result needs an oracle, not just a passing run.
   stops working fails the tests rather than rendering an error. The plugin
   page is a contract: its module is installed through its own entry point,
   its configuration is merged into the example, and its `ModelContract`
-  subclass must pass.)
+  subclass must pass. The `Docs` workflow fails on a docstring the numpy parser
+  misreads and on a `great-docs.yml` great-docs cannot parse, which it
+  would otherwise only warn about.)
 
 ## 15 Build order
 
