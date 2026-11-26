@@ -11,7 +11,7 @@ from typing import Any
 
 from dazflow.core.artefact import Figure, Source, Table
 from dazflow.core.finding import Finding, fill
-from dazflow.render.style import Style
+from dazflow.render.style import Style, load_style
 
 __all__ = [
     "caption_text",
@@ -76,13 +76,18 @@ class _Number(float):
         return format_number(float(self), self.style)
 
 
-def finding_text(finding: Finding, style: Style) -> str:
+def finding_text(finding: Finding, style: Style | None = None) -> str:
     """The finding's sentence, with the style's template for its key and numbers in the style.
+
+    `style` is a `Style`; ``None`` means the house style (``load_style(None)``).
+    This is the text a report shows and ``dazflow run`` and ``dazflow show``
+    print; `Finding.text` keeps the numbers as given, for the run record.
 
     Floats are written with the style's decimals and separators wherever a
     template prints them as they are (``{{ x }}``); filters and comparisons
     see the plain number. Integers, booleans and text are printed as given.
     """
+    style = load_style(style)
     template = (
         style.findings.get(finding.key, finding.template) if finding.key else finding.template
     )

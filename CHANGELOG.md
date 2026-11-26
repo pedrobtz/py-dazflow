@@ -51,7 +51,10 @@ findings ready for a model document. It needs Python 3.12 or later.
   written out at its default and example data that runs), `validate`, one
   command per step, `run --from/--to`, `show <artefact-id>`, `replay`,
   `plugins` and `--version`. Exit 0 on success, 1 on an error, 2 on a
-  failed gate or a replay that differs.
+  failed gate or a replay that differs. `run` and `show` print findings
+  with the numbers in the project's style, as the reports write them
+  (`Finding.text` and the record keep the numbers as computed), and
+  `dz.render.finding_text` takes the house style when no style is given.
 - The run record, `reports/record.json`: configuration with every
   default, results, checks, overrides, environment and the fingerprint of
   every input. `dazflow replay` reruns it and names every difference.

@@ -54,10 +54,12 @@ ex.gate.passed, [c.name for c in ex.gate.checks]
 (True, ['sign:gdp_growth', 'significance:gdp_growth', 'sign:unemployment', 'significance:unemployment'])
 ```
 
-A finding is a sentence from a template, filled with the step's numbers:
+A finding is a sentence from a template, filled with the step's numbers;
+`dz.render.finding_text` writes them in the house style, as the reports
+and the command line do (`ex.finding.text` keeps them as computed):
 
 ```python
-print(ex.finding.text)
+print(dz.render.finding_text(ex.finding))
 ```
 
 ```
