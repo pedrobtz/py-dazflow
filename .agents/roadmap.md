@@ -69,7 +69,7 @@ checks something the stage introduces and later stages build on.
 | 10 | [Diagnose](#stage-10--diagnose) | quick | [#12](https://github.com/pedrobtz/py-dazflow/issues/12) | [#30](https://github.com/pedrobtz/py-dazflow/pull/30) | 2026-11-25 |
 | 11 | [Report and replay](#stage-11--report-and-replay) | quick | [#13](https://github.com/pedrobtz/py-dazflow/issues/13) | [#31](https://github.com/pedrobtz/py-dazflow/pull/31) | 2026-11-26 |
 | 12 | [Documentation site](#stage-12--documentation-site) | quick | [#14](https://github.com/pedrobtz/py-dazflow/issues/14) | [#32](https://github.com/pedrobtz/py-dazflow/pull/32) | 2026-11-26 |
-| 13 | [Assurance](#stage-13--assurance) | quick | [#15](https://github.com/pedrobtz/py-dazflow/issues/15) | | 2026-11-26 |
+| 13 | [Assurance](#stage-13--assurance) | quick | [#15](https://github.com/pedrobtz/py-dazflow/issues/15) | [#43](https://github.com/pedrobtz/py-dazflow/pull/43) | 2026-11-26 |
 | 14 | [Full CI](#stage-14--full-ci) | full | [#16](https://github.com/pedrobtz/py-dazflow/issues/16) | | |
 | 15 | [v0.1.0 readiness](#stage-15--v010-readiness) | full | [#17](https://github.com/pedrobtz/py-dazflow/issues/17) | | |
 | 16 | [Review](#stage-16--review) | full | [#18](https://github.com/pedrobtz/py-dazflow/issues/18) | | |
