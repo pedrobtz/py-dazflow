@@ -69,9 +69,9 @@ read back and checked against the recorded fingerprints, and runs the rest:
 ```sh
 $ dazflow run --from build
 build: gate passed; 6 artefacts in reports/build/
-  3 candidates were fitted on 3 driver combinations of up to 2 drivers, beside 2 benchmarks; 3 pass every check: each driver has its expected sign and a p-value of at most 0.05, and no VIF exceeds 10.0.
+  3 candidates were fitted on 3 driver combinations of up to 2 drivers, beside 2 benchmarks; 3 pass every check: each driver has its expected sign and a p-value of at most 0.05, and no VIF exceeds 10.00.
 select: gate passed; 8 artefacts in reports/select/
-  5 models were scored at 60 origins, their errors scaled by the mean benchmark's; the model confidence set at 0.1 holds 1 of them, 1 passing every check. ols:gdp_growth+unemployment is proposed: 2 drivers and a scaled error of 0.3939399476640034.
+  5 models were scored at 60 origins, their errors scaled by the mean benchmark's; the model confidence set at 0.10 holds 1 of them, 1 passing every check. ols:gdp_growth+unemployment is proposed: 2 drivers and a scaled error of 0.39.
   ...
 report: gate passed; 6 artefacts in reports/report/
   The document reports 7 steps, ingest to diagnose, in pipeline order, with 26 tables, 10 figures and 7 findings. Every step's gate passed, 1 check by override with a reason.
@@ -84,7 +84,8 @@ command the same way.
 ## Reading the results
 
 `dazflow show` prints one table or finding of the last run by its
-identifier, or the path of a figure:
+identifier, or the path of a figure. Tables and findings are written in the
+project's style, as in `reports/<step>/`:
 
 ```sh
 $ dazflow show T6.1
@@ -99,6 +100,8 @@ Table T6.1. Ranking of the candidates
 | 5 | naive | benchmark | 0 | 1.27 | no | 0.00 | pass | no | 0 | 0 |  | **Fail** |
 
 Scaled error: the candidate's rolling-origin RMSE over the mean benchmark's; it beats the benchmark below 1.
+$ dazflow show S6.1
+5 models were scored at 60 origins, their errors scaled by the mean benchmark's; the model confidence set at 0.10 holds 1 of them, 1 passing every check. ols:gdp_growth+unemployment is proposed: 2 drivers and a scaled error of 0.39.
 $ dazflow show F3.1
 F3.1: Lag profiles: correlation of each driver with loss_rate, by lag
 reports/explore/F3.1.svg
@@ -118,7 +121,7 @@ override in `config/diagnose.yaml`; with the override removed:
 ```sh
 $ dazflow run --from diagnose
 diagnose: gate FAILED (reset); 9 artefacts in reports/diagnose/
-  ols:gdp_growth+unemployment passes 11 of 12 diagnostic checks and fails reset. Back-tested from 57 origins up to 4 periods ahead, its 95% interval covered 0.9649122807017544 of the actual values, and 1 of 119 observations lie outside its 99% interval.
+  ols:gdp_growth+unemployment passes 11 of 12 diagnostic checks and fails reset. Back-tested from 57 origins up to 4 periods ahead, its 95% interval covered 0.96 of the actual values, and 1 of 119 observations lie outside its 99% interval.
 stopped after diagnose: its gate failed
 $ echo $?
 2

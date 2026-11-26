@@ -78,7 +78,7 @@ One row per boundary the package crosses, in each direction it crosses it.
 | replay script | run as a subprocess: exit 0 on the record, non-zero after an input changed | tests/e2e/test_replay_script.py |
 | CLI exit codes | the design's codes 0, 1 and 2, and the files a run leaves | tests/cli/test_exit_codes.py |
 | CLI JSON output | the library's own results and the record file | tests/cli/test_json.py |
-| CLI output of findings | the rendered Markdown of the same finding | gap #36 |
+| CLI output of findings | the finding sentence of `reports/<step>/S*.md`; the style's decimals (0.394 at `decimals: 3`); no float with more digits in `dazflow run` | tests/cli/test_findings.py, tests/render/test_finding_text.py |
 | plugin entry points | a real installed distribution (`*.dist-info` on `sys.path`) found by key; a broken one named in a `PluginError` | tests/core/test_registry.py, tests/core/test_core_oracles.py |
 | plugin contract suites | a good component passes, each broken one fails; every built-in passes | tests/test_testing.py, tests/models/test_contract.py, tests/checks/test_contract.py |
 | CLI with a broken plugin | a real installed broken distribution: a warning naming it, every built-in command kept | tests/cli/test_broken_plugin.py |

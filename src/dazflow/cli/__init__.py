@@ -86,7 +86,10 @@ def _root(
     """dazflow: ingest, clean, explore and the later steps, from a project folder."""
 
 
-def _summary(record: Any, steps: tuple[str, ...]) -> None:
+def _summary(record: Any, steps: tuple[str, ...], style: Any) -> None:
+    from dazflow.core.finding import Finding
+    from dazflow.render import finding_text
+
     for name in steps:
         result = record.results[name]
         checks = result["gate"]["checks"]
@@ -95,7 +98,7 @@ def _summary(record: Any, steps: tuple[str, ...]) -> None:
         typer.echo(f"{name}: gate {state}; {len(result['artefacts'])} artefacts in reports/{name}/")
         finding = result.get("finding")
         if finding:
-            typer.echo(f"  {finding['text']}")
+            typer.echo(f"  {finding_text(Finding.model_validate(finding), style)}")
     if record.run.stopped_at is not None:
         typer.echo(f"stopped after {record.run.stopped_at}: its gate failed", err=True)
 
@@ -111,7 +114,9 @@ def _run(
     if json_out:
         _echo_json(record.results[start] if step else record.to_dict())
     else:
-        _summary(record, run.steps)
+        from dazflow.render import load_style
+
+        _summary(record, run.steps, load_style(project.style_path()))
     return EXIT_OK if run.passed else EXIT_GATE
 
 
@@ -234,7 +239,9 @@ def show(
                 path = project.root / "reports" / step / f"{artefact_id}.svg"
                 typer.echo(f"{artefact_id}: {obj.caption or ''}\n{path}")
             else:
-                typer.echo(obj.text)
+                from dazflow.render import finding_text, load_style
+
+                typer.echo(finding_text(obj, load_style(project.style_path())))
             return EXIT_OK
     known = [k for d in record.results.values() for k in d["artefacts"]]
     raise ProjectError(
