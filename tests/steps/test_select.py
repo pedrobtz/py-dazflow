@@ -494,3 +494,65 @@ def test_the_scenario_cover_counts_contiguous_periods_after_the_end():
     assert dz.readers.scenario_cover(paths, end) == 3
     assert dz.readers.scenario_cover(paths.drop(index=pd.Period("2021Q2", freq="Q")), end) == 1
     assert dz.readers.scenario_cover(paths, pd.Period("2021Q3", freq="Q")) == 0
+
+
+# --- tied losses (#54) -------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("method", ["R", "max"])
+def test_identical_losses_share_one_place_in_the_confidence_set(method):
+    # Oracle: arch's MCS on the losses with the duplicate column dropped; the
+    # duplicate gets its twin's inclusion and p-value.
+    L = losses(2)
+    tied = L.assign(m1_copy=L["m1"], m3_copy=L["m3"])
+    got = select.confidence_set(tied, size=0.1, reps=300, method=method, seed=4)
+    alone = select.confidence_set(L, size=0.1, reps=300, method=method, seed=4)
+    assert got.pvalues == {
+        **alone.pvalues,
+        "m1_copy": alone.pvalues["m1"],
+        "m3_copy": alone.pvalues["m3"],
+    }
+    assert set(got.included) == set(alone.included) | {
+        f"{m}_copy" for m in ("m1", "m3") if m in alone.included
+    }
+    assert got.included == tuple(c for c in tied.columns if c in set(got.included))
+    assert got.ties == {"m1_copy": "m1", "m3_copy": "m3"}
+
+
+def test_two_models_with_identical_losses_are_one_set():
+    L = losses()[["m1"]].assign(m2=lambda d: d["m1"])
+    got = select.confidence_set(L, seed=0)
+    assert got.included == ("m1", "m2") and got.pvalues == {"m1": 1.0, "m2": 1.0}
+    assert got.ties == {"m2": "m1"}
+
+
+def test_a_near_tie_is_not_a_tie():
+    L = losses(2)
+    L = L.assign(m1_near=L["m1"] + np.r_[1e-3, np.zeros(len(L) - 1)])
+    assert select.confidence_set(L, reps=300, seed=0).ties == {}
+
+
+def test_an_mcs_that_arch_cannot_compute_is_a_select_error(monkeypatch):
+    from arch.bootstrap import multiple_comparison
+
+    def fail(self):
+        raise RuntimeError("The MCS test statistic is not finite")
+
+    monkeypatch.setattr(multiple_comparison.MCS, "compute", fail)
+    with pytest.raises(SelectError, match="confidence set") as err:
+        select.confidence_set(losses(), seed=0)
+    assert "not finite" in err.value.observed
+
+
+def test_a_duplicated_candidate_completes_select(built):
+    ds, b = built
+    twin = b.candidates[-1]
+    copy_ = twin.model_copy(update={"id": twin.id + "-twin"})
+    tied = b.model_copy(
+        update={"candidates": (*b.candidates, copy_), "passing": (*b.passing, copy_.id)}
+    )
+    r = select.run(ds, quick(), build=tied)
+    assert r.losses[copy_.id] == r.losses[twin.id]
+    assert r.confidence.ties == {copy_.id: twin.id}
+    assert r.confidence.pvalues[copy_.id] == r.confidence.pvalues[twin.id]
+    assert (copy_.id in r.confidence.included) == (twin.id in r.confidence.included)

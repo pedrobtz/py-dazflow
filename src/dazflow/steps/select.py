@@ -186,6 +186,7 @@ class ConfidenceSet(_Record):
     method: str = "R"
     bootstrap: str = "stationary"
     seed: int = 0
+    ties: dict[str, str] = Field(default_factory=dict)
 
 
 class RuleRow(_Record):
@@ -306,23 +307,45 @@ def confidence_set(
 
     The call is ``arch.bootstrap.MCS(losses, size, reps, block_size,
     method, bootstrap, seed=seed).compute()``. A single model is its own set.
+    Models whose losses are identical at every origin cannot be told apart,
+    and their loss differential has no variance, so arch's statistic is not
+    finite: the test runs on the first of each tied group, and every other
+    member takes its inclusion and p-value (``ties`` maps it to that first
+    one; design D50). Any other failure of arch's computation is a
+    `SelectError`.
     """
     from arch.bootstrap import MCS
 
     names = [str(c) for c in losses.columns]
-    if len(names) < 2:
+    ties: dict[str, str] = {}
+    first: list[str] = []
+    for name, column in zip(names, losses.columns, strict=True):
+        values = losses[column].to_numpy()
+        twin = next((f for f in first if np.array_equal(losses[f].to_numpy(), values)), None)
+        if twin is None:
+            first.append(name)
+        else:
+            ties[name] = twin
+
+    def of(included: set[str], pvalues: Mapping[str, float]) -> ConfidenceSet:
+        keep = included | {n for n, f in ties.items() if f in included}
         return ConfidenceSet(
-            included=tuple(names),
-            pvalues=dict.fromkeys(names, 1.0),
+            included=tuple(n for n in names if n in keep),
+            pvalues={n: float(pvalues[ties.get(n, n)]) for n in names},
             size=size,
             reps=reps,
             block_size=block_size,
             method=method,
             bootstrap=bootstrap,
             seed=seed,
+            ties=ties,
         )
+
+    if len(first) < 2:
+        return of(set(first), dict.fromkeys(first, 1.0))
+    distinct = losses[first]
     mcs = MCS(
-        losses,
+        distinct,
         size,
         reps=reps,
         block_size=block_size,
@@ -330,19 +353,16 @@ def confidence_set(
         bootstrap=bootstrap,
         seed=seed,
     )
-    mcs.compute()
-    kept = {str(c) for c in mcs.included}
+    try:
+        mcs.compute()
+    except RuntimeError as err:
+        raise _fail(
+            "the model confidence set cannot be computed",
+            f"arch: {err}",
+            "Check the candidates' losses are finite, or use more origins (splitter_config.folds).",
+        ) from err
     pv = mcs.pvalues["Pvalue"]
-    return ConfidenceSet(
-        included=tuple(n for n in names if n in kept),
-        pvalues={n: float(pv[n]) for n in names},
-        size=size,
-        reps=reps,
-        block_size=block_size,
-        method=method,
-        bootstrap=bootstrap,
-        seed=seed,
-    )
+    return of({str(c) for c in mcs.included}, {n: float(pv[n]) for n in first})
 
 
 def default_rule(rows: Sequence[RuleRow]) -> str | None:

@@ -30,7 +30,9 @@ findings ready for a model document. It needs Python 3.12 or later.
   bounds, and proposes a default that the modeller confirms or overrides
   in configuration, with a reason. Scenarios of different lengths are
   forecast over the periods all of them cover, as forecast does; a choice
-  whose rolling-origin evaluation failed is refused with its reason.
+  whose rolling-origin evaluation failed is refused with its reason. Candidates with identical losses at every origin share one place
+  in the confidence set, with the same inclusion and p-value, instead of
+  stopping the step with arch's `RuntimeError`.
 - `dz.forecast` forecasts the chosen model under every scenario with
   intervals, anchors the origin, optionally reverts to a long-run level,
   and transforms back to the target's scale with a suitable bias
