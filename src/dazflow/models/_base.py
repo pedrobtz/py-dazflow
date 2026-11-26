@@ -338,7 +338,13 @@ def _check_X(X: Any, index: pd.PeriodIndex, target: str, what: str = "drivers") 
     except (TypeError, ValueError):
         raise _bad_data(f"the {what} are not numeric", f"dtypes {dict(X.dtypes)}") from None
     _no_missing(X, what)
-    return X
+    # Row-major whatever the caller's layout or pandas' copy gives: statsmodels'
+    # likelihood takes a BLAS path that depends on the strides, and on
+    # statsmodels 0.14.2 / numpy 1.26.4 a column-major copy moved an ARIMAX fit
+    # with a flat likelihood by 1e-4 against the row-major one (#16, D36).
+    return pd.DataFrame(
+        np.ascontiguousarray(X.to_numpy(dtype=float)), index=X.index, columns=X.columns
+    )
 
 
 def fingerprint(y: pd.Series, X: pd.DataFrame | None) -> str:

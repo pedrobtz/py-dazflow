@@ -24,6 +24,12 @@ def rounded(values):
     return np.array([float(f"{v:.10g}") for v in np.asarray(values, float)])
 
 
+def layout(X, order):
+    """`X` with the same values held row-major ("C") or column-major ("F")."""
+    values = np.asarray(X.to_numpy(dtype=float), order=order)
+    return pd.DataFrame(values, index=X.index, columns=X.columns)
+
+
 def assert_paths(fc, frame_at, lo_col, up_col):
     """`fc` equals the statsmodels summary frames at every level."""
     for i, lv in enumerate(LEVELS):
@@ -126,7 +132,8 @@ def test_arimax_equals_statsmodels_sarimax(data):
     fitted = models.get("arimax")(order=(1, 0, 0), trend="c").fit(y, X)
     Xf = future(X)
     fc = fitted.predict(H, Xf, levels=LEVELS)
-    model = SARIMAX(y, exog=X, order=(1, 0, 0), trend="c")
+    # The wrappers hold drivers row-major (#16); the direct call gets the same layout.
+    model = SARIMAX(y, exog=layout(X, "C"), order=(1, 0, 0), trend="c")
     res = model.fit(start_params=rounded(model.start_params), disp=False, maxiter=200)
     pred = res.get_forecast(H, exog=Xf)
 
@@ -141,7 +148,7 @@ def test_arimax_equals_statsmodels_sarimax(data):
 def test_integrated_arimax_residuals_leave_out_the_diffuse_periods(data):
     y, X = data
     fitted = models.get("arimax")(order=(0, 1, 1), trend="n").fit(y, X)
-    model = SARIMAX(y, exog=X, order=(0, 1, 1), trend="n")
+    model = SARIMAX(y, exog=layout(X, "C"), order=(0, 1, 1), trend="n")
     res = model.fit(start_params=rounded(model.start_params), disp=False, maxiter=200)
     burn = max(res.loglikelihood_burn, res.nobs_diffuse)
 
@@ -175,3 +182,26 @@ def test_ets_equals_statsmodels_ets_model(data, config):
     close(fitted.residuals, y - res.fittedvalues)
     close(fc.mean, pred.predicted_mean)
     assert_paths(fc, lambda a: pred.summary_frame(alpha=a), "pi_lower", "pi_upper")
+
+
+@pytest.mark.parametrize(
+    ("form", "config"),
+    [
+        ("ols", {}),
+        ("glm", {}),
+        ("arimax", {"order": (1, 0, 0), "trend": "c"}),
+        ("arimax", {"order": (0, 1, 1), "trend": "n"}),
+    ],
+)
+def test_a_fit_depends_on_the_drivers_values_not_their_memory_layout(data, form, config):
+    # #16: statsmodels' likelihood takes a BLAS path that depends on the exog
+    # array's strides; on statsmodels 0.14.2 / numpy 1.26.4 a row-major and a
+    # column-major copy of the same drivers moved an ARIMAX fit by up to 1e-4.
+    y, X = data
+    by_row = models.get(form)(**config).fit(y, layout(X, "C"))
+    by_column = models.get(form)(**config).fit(y, layout(X, "F"))
+
+    assert np.asarray(layout(X, "F").to_numpy()).flags["F_CONTIGUOUS"]
+    np.testing.assert_array_equal(by_row.params, by_column.params)
+    np.testing.assert_array_equal(by_row.cov_params, by_column.cov_params)
+    np.testing.assert_array_equal(by_row.residuals, by_column.residuals)

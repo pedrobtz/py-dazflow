@@ -57,14 +57,14 @@ One row per boundary the package crosses, in each direction it crosses it.
 | transforms: forward then inverse | round trip to the input, hypothesis over each domain | tests/transforms/test_roundtrip.py |
 | Box-Cox transform | its definition in 50-digit decimal arithmetic; the estimated lambda equals scipy's maximum likelihood estimate | tests/transforms/test_roundtrip.py::test_boxcox_matches_its_definition_in_50_digit_arithmetic, tests/transforms/test_transform_oracles.py |
 | model forms against statsmodels | the direct statsmodels call on the same data (OLS, GLM, SARIMAX, ETSModel), rtol 1e-10 | tests/models/test_wrappers.py |
-| model forms on the lowest dependencies | the same direct calls; ARIMAX varies run to run on statsmodels 0.14.2 | gap #16 |
+| model forms on the lowest dependencies | the same direct calls on drivers of the same layout; a row-major and a column-major copy of the drivers fitted to equal bits (#16, D47) | tests/models/test_wrappers.py::test_a_fit_depends_on_the_drivers_values_not_their_memory_layout |
 | model records and refit | the stored parameters, refitted to 1e-10 | tests/models/test_refit.py |
 | metrics and splitters | hand-worked values (MASE 9/14) and fold lists by hand | tests/evaluation/test_metrics.py, tests/evaluation/test_splitters.py |
 | rolling-origin evaluation | a direct statsmodels fit at each origin | tests/evaluation/test_rolling.py |
 | diagnose tests | the direct statsmodels calls; CUSUM bounds from Brown, Durbin and Evans' table | tests/steps/test_diagnose.py |
 | run record and its schema version | the step schemas (jsonschema) and a load back equal; another schema version refused | tests/pipeline/test_record.py |
 | replay and its tolerance | a rerun of the example equal to its record; numbers moved just inside and just outside 1e-9 | tests/e2e/test_replay.py, tests/pipeline/test_compare.py |
-| replay across machines (ARIMAX, ETS) | a record written on one CI leg replayed on another | gap #16 |
+| replay across machines (ARIMAX, ETS) | a record written on one CI leg replayed on another; measured by hand at Stage 14, no tolerance set (D47) | gap #44 |
 | dataset fingerprint | stored SHA-256 values of fixtures, and the documented canonical form hashed by hand | tests/core/test_fingerprint.py |
 | dataset CSV and schema file | written then read back with the same fingerprint, and read by the csv reader | tests/project/test_project.py |
 | Word document | read back with python-docx: headings, captions, cells, marks, source notes | tests/render/test_docx.py, tests/e2e/test_document.py |

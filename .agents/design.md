@@ -325,8 +325,8 @@ Settled 2026-11-25 (Stage 7, D36). The stored form is
   versions) the closed-form forms (the benchmarks, OLS, GLM) still agree
   to about 1e-10, while the optimised forms (ARIMAX, ETS) agree only to
   the optimiser's convergence: a one-ulp change in the start moved a
-  seasonal ARIMAX up to 7e-5 on the test data. Replay compares those
-  against a tolerance set from the standard errors, which Stage 11 fixes.
+  seasonal ARIMAX up to 7e-5 on the test data. Stage 14 measured it: no
+  tolerance across machines is promised for them (D47).
 
 ## 6 Extension
 
@@ -1765,7 +1765,7 @@ Each statistical result needs an oracle, not just a passing run.
   because no CI leg replays a record written on another machine, and a
   number chosen without one would be untested. A cross-machine replay of
   an optimised form passes `--rtol` explicitly; the full CI stage (14)
-  measures it.)
+  measures it.) Stage 14 measured it and left the tolerance as it is (D47).
 - **D44.** The report step is built from the run record alone and keeps
   the replay out of its own gate: its checks are `complete` and `gates`,
   and the replay that §7.10 names as the gate is `dazflow replay`, exit 0
@@ -1820,6 +1820,31 @@ Each statistical result needs an oracle, not just a passing run.
   survivor is a question about a test, which a red pull request would
   not answer. The first run's survivors were read: those that meant a
   missing oracle got a test, the rest are tracked in the assurance file.)
+- **D47.** Full CI (2026-11-26, Stage 14). A model form holds the drivers
+  row-major whatever layout the caller passes (`_check_X` builds them from a
+  C-contiguous array). The run-to-run ARIMAX difference on the lowest
+  dependencies (#16) was a layout difference, not rounding: pandas 2.2.2's
+  `DataFrame.copy()` turns a frame column-major, statsmodels' likelihood then
+  takes another BLAS path for the exog, and the optimiser, started from the
+  same rounded values (D36), stopped up to 1e-4 apart where the likelihood is
+  flat (an MA root at -0.9998). Reproduced in Linux with the CI's seed; a
+  row-major and a column-major copy of the same drivers now fit to equal
+  bits, and the wrapper-equality tolerance stays 1e-10. Replay across
+  machines keeps D43's same-machine tolerance and promises nothing tighter
+  for the optimised forms: the example with an ETS benchmark, the same
+  package versions on macOS and Linux (x86_64), agreed to 1e-14 on every
+  closed-form number but moved ETS' smoothing parameters (about 0.003, near
+  their bound) by 6%, select's ETS losses by 7% and the sign of ETS'
+  numerical covariance, and two finding texts that print full-precision
+  floats (#36). A tolerance from the standard errors means nothing where the
+  covariance is not positive definite, so none is set; a replay on another
+  machine names those differences, and its notes name the environment. The
+  coverage floor is 98% (`--cov-fail-under`, the quick job; 98.6% reached). In
+  the lowest-dependencies job unused snapshots warn instead of failing:
+  matplotlib 3.8.4 skips four step-figure snapshots (#42), which syrupy 4.6
+  counts as unused. (A tolerance chosen to pass two machines would be
+  untested on the third; the same-machine replay is the reproducibility
+  0.1.0 promises, §10.)
 
 ## 15 Build order
 

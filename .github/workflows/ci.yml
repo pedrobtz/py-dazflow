@@ -102,7 +102,10 @@ jobs:
       # rerun a failure in the same order with `--randomly-seed=<seed>`. The tests
       # run in parallel (pytest-xdist) to stay inside the five-minute budget; the
       # seed reaches every worker.
-      - run: uv run --frozen --all-extras pytest -n auto --cov=dazflow --cov-report=term-missing
+      # The coverage floor: Stage 14 reached 98.6% (design D47).
+      - run: >-
+          uv run --frozen --all-extras pytest -n auto --cov=dazflow
+          --cov-report=term-missing --cov-fail-under=98
         env:
           HYPOTHESIS_PROFILE: quick
 
@@ -139,7 +142,10 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           python-version: "3.12"
-      - run: uv run --resolution lowest-direct --isolated --all-extras pytest
+      # matplotlib 3.8.4 skips four step-figure snapshots (gap #42), and syrupy
+      # 4.6 counts a skipped test's snapshot as unused, which fails the run:
+      # here only, unused snapshots warn.
+      - run: uv run --resolution lowest-direct --isolated --all-extras pytest --snapshot-warn-unused
         env:
           HYPOTHESIS_PROFILE: full
       - name: Versions resolved

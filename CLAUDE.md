@@ -85,6 +85,10 @@ every 0.1.0 step.
 `.github/workflows/mutation.yml`, weekly), hypothesis profiles, the
 malformed-CSV tests and the step figures' SVG snapshots.
 
+2026-11-26, Stage 14: the full profile green; model forms hold drivers
+row-major (D47), the coverage floor is 98% and replay across machines is
+measured, not promised (#44).
+
 ## Versions and dependents
 
 `v0.1.0` issue: see the roadmap header. Dependents: none.
@@ -97,7 +101,7 @@ uv run pytest                 # tests, in random order (seed in the header)
 uv run pytest -n auto         # the same in parallel, as the quick job runs them
 uv run pytest -p no:randomly  # tests in file order
 uv run pytest --randomly-seed=<seed>   # replay a CI order
-uv run pytest --cov=dazflow --cov-report=term-missing   # as CI runs them
+uv run pytest -n auto --cov=dazflow --cov-fail-under=98   # as the quick job runs them
 uv run ruff check .           # lint
 uv run ruff format .          # format (CI runs `ruff format --check .`)
 uv build                      # sdist and wheel into dist/
@@ -194,7 +198,10 @@ To be written as stages land; see `.agents/design.md` §4 for the layers
   form. Optimised forms pass `start_params=_round_start(model.start_params)`
   (D36), or a refit is not repeatable to 1e-10. A new form's test belongs
   in `tests/models/test_wrappers.py` (equality with the direct call) and in
-  `BUILT_INS` of `tests/models/test_contract.py`.
+  `BUILT_INS` of `tests/models/test_contract.py`. `_check_X` hands every
+  form row-major drivers: statsmodels' likelihood depends on the exog's
+  strides, so a direct call compared with a wrapper gets `layout(X, "C")`
+  (D47).
 - `evaluation/`: `_base.py` (splitters, metrics, `Fold`), `_rolling.py`
   (`evaluate`, `Evaluation`). Shared by select and segment; steps import
   it, never each other.
