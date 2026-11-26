@@ -1683,7 +1683,8 @@ Each statistical result needs an oracle, not just a passing run.
 - **D38.** The default selection rule: among the candidates that pass every
   check (build's sign, significance and VIF checks, and select's benchmark,
   scenario-order and bounds checks), take those in arch's model confidence
-  set (`arch.bootstrap.MCS`) at a configured size, default 0.10; choose the
+  set (`arch.bootstrap.MCS`) at a configured size, default 0.10, where
+  candidates with identical losses share one place (D50); choose the
   one with the fewest drivers, breaking ties by the lowest
   benchmark-scaled error (then by build's order). If no candidate that
   passes every check is in the set, the finding says so, nothing is
@@ -1876,6 +1877,20 @@ Each statistical result needs an oracle, not just a passing run.
   on input the later steps accept; a horizon per scenario made
   `scenario-order` compare projections over different periods, so its
   result could come from the lengths rather than from severity).
+- **D50.** Select runs the model confidence set on one column per group of
+  candidates whose losses are identical at every origin (exact equality,
+  no tolerance), the first listed; every other member takes that
+  candidate's inclusion and p-value, and `ConfidenceSet.ties` maps it to
+  the first one. Any other failure of arch's computation is a
+  `SelectError`. D38's rule then picks among the tied candidates by
+  drivers, error and build's order as usual (2026-11-26, #54: an
+  identically zero loss differential has no variance, so arch's statistic
+  is 0/0 and `MCS.compute` raised a bare `RuntimeError` (method `R`) or
+  silently emptied the set (`max`); candidates the losses cannot tell
+  apart at all must share one fate, which is the MCS's own reading of
+  equal predictive ability, and the bootstrap stays seeded, so the result
+  repeats. A tolerance would be a threshold in code; near ties have a
+  non-zero variance and arch handles them).
 
 ## 15 Build order
 
