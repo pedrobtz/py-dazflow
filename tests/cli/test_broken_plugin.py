@@ -33,6 +33,30 @@ def dazflow(site, *args):
     )
 
 
+def commands(site):
+    """The command names the CLI registered at import, one interpreter of its own."""
+    code = (
+        "import typer.main; from dazflow.cli import app; "
+        "print(' '.join(sorted(typer.main.get_command(app).commands)))"
+    )
+    return subprocess.run(
+        [sys.executable, "-c", code],
+        env=environment(site),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=120,
+        check=False,
+    )
+
+
+def environment(site):
+    return {
+        **os.environ,
+        "PYTHONPATH": os.pathsep.join([str(site), os.environ.get("PYTHONPATH", "")]),
+    }
+
+
 def install_broken(site):
     info = site / "dzt_broken-0.1.dist-info"
     info.mkdir()
@@ -48,14 +72,13 @@ def install_broken(site):
 def test_a_broken_plugin_warns_and_keeps_every_built_in_command(tmp_path):
     install_broken(tmp_path)
 
-    result = dazflow(tmp_path, "--help")
+    result = commands(tmp_path)
 
     assert result.returncode == 0, result.stderr
     assert "warning: the dazflow plugin 'broken' failed to load" in result.stderr
     assert "dzt-broken" in result.stderr
     assert "boom" in result.stderr
-    listed = {line.split()[1] for line in result.stdout.splitlines() if line.startswith("│ ")}
-    assert set(COMMANDS) <= listed, listed
+    assert set(COMMANDS) <= set(result.stdout.split()), result.stdout
 
 
 def test_a_step_command_with_a_broken_plugin_exits_1_naming_it(tmp_path):
@@ -68,7 +91,8 @@ def test_a_step_command_with_a_broken_plugin_exits_1_naming_it(tmp_path):
 
 
 def test_without_the_broken_plugin_there_is_no_warning(tmp_path):
-    result = dazflow(tmp_path, "--help")
+    result = commands(tmp_path)
 
     assert result.returncode == 0, result.stderr
     assert "warning" not in result.stderr
+    assert set(COMMANDS) <= set(result.stdout.split()), result.stdout
